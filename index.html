@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gita Niketan - Teacher Substitution Portal</title>
+    <title>Gita Niketan - Teacher Substitution System</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
       * {
@@ -33,7 +33,7 @@
         opacity: 0.95;
       }
       .container {
-        max-width: 800px;
+        max-width: 1000px;
         margin: 0 auto;
         background: white;
         border-radius: 8px;
@@ -56,11 +56,6 @@
         padding-bottom: 8px;
         border-bottom: 2px solid #c0392b;
       }
-      .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 15px;
-      }
       label {
         display: block;
         margin-bottom: 6px;
@@ -68,8 +63,7 @@
         font-weight: 500;
         font-size: 14px;
       }
-      input,
-      select {
+      input {
         width: 100%;
         padding: 10px;
         border: 1px solid #bdc3c7;
@@ -77,8 +71,7 @@
         font-size: 14px;
         transition: border-color 0.3s;
       }
-      input:focus,
-      select:focus {
+      input:focus {
         outline: none;
         border-color: #c0392b;
       }
@@ -109,34 +102,6 @@
       .result.show {
         display: block;
       }
-      .answer-box {
-        background: #d4edda;
-        padding: 30px;
-        border-radius: 8px;
-        border-left: 5px solid #28a745;
-        color: #155724;
-        text-align: center;
-      }
-      .answer-box h2 {
-        font-size: 28px;
-        margin-bottom: 10px;
-        font-weight: 600;
-      }
-      .answer-box p {
-        font-size: 16px;
-      }
-      .not-found {
-        background: #f8d7da;
-        padding: 30px;
-        border-radius: 8px;
-        border-left: 5px solid #dc3545;
-        color: #721c24;
-        text-align: center;
-      }
-      .not-found h2 {
-        font-size: 22px;
-        font-weight: 600;
-      }
       .status {
         font-size: 13px;
         margin-top: 8px;
@@ -159,28 +124,66 @@
         margin-bottom: 15px;
         font-weight: 600;
       }
-      .schedule-list {
-        list-style: none;
-      }
-      .schedule-list li {
-        padding: 8px 12px;
+      .period-row {
         background: white;
-        margin-bottom: 8px;
-        border-radius: 4px;
-        font-size: 14px;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border: 1px solid #d6eaf8;
+      }
+      .period-row:last-child {
+        margin-bottom: 0;
+      }
+      .period-header {
         display: flex;
         justify-content: space-between;
-      }
-      .schedule-list li:last-child {
-        margin-bottom: 0;
+        align-items: center;
+        margin-bottom: 10px;
       }
       .period-badge {
         background: #34495e;
         color: white;
-        padding: 2px 10px;
+        padding: 4px 12px;
         border-radius: 12px;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
+      }
+      .class-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2c3e50;
+      }
+      .subject-name {
+        font-size: 13px;
+        color: #7f8c8d;
+        margin-top: 2px;
+      }
+      .free-teachers {
+        margin-top: 10px;
+      }
+      .free-teachers-title {
+        font-size: 13px;
+        color: #7f8c8d;
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+      .teacher-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .teacher-tag {
+        background: #d4edda;
+        color: #155724;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        border: 1px solid #c3e6cb;
+      }
+      .no-free {
+        color: #e74c3c;
+        font-size: 12px;
+        font-style: italic;
       }
     </style>
   </head>
@@ -193,51 +196,27 @@
 
       <div class="content">
         <div class="section">
-          <div class="section-title">Step 1: Upload Adjustment Sheet</div>
+          <div class="section-title">Step 1: Upload Master Timetable</div>
           <input type="file" id="sheetFile" accept=".xlsx,.xls" />
           <div class="status" id="fileStatus">
-            Please upload the Excel file to proceed
+            Please upload Time_Table_Full.xlsx
           </div>
         </div>
 
         <div class="section">
-          <div class="section-title">Step 2: Enter Details</div>
-          <div class="form-row">
-            <div>
-              <label
-                >Absent Teacher Name
-                <span style="color: #e74c3c">*</span></label
-              >
-              <input
-                type="text"
-                id="absentTeacher"
-                placeholder="e.g. Neelu Dhall"
-              />
-            </div>
-            <div>
-              <label>Period <span style="color: #e74c3c">*</span></label>
-              <select id="period">
-                <option value="">Select Period</option>
-                <option value="1">Period 1</option>
-                <option value="2">Period 2</option>
-                <option value="3">Period 3</option>
-                <option value="4">Period 4</option>
-                <option value="5">Period 5</option>
-                <option value="6">Period 6</option>
-                <option value="7">Period 7</option>
-                <option value="8">Period 8</option>
-                <option value="9">Period 9</option>
-              </select>
-            </div>
-            <div>
-              <label>Class <span style="color: #e74c3c">*</span></label>
-              <input type="text" id="className" placeholder="e.g. XI-C(ACC.)" />
-            </div>
-          </div>
+          <div class="section-title">Step 2: Enter Absent Teacher Name</div>
+          <label
+            >Absent Teacher Name <span style="color: #e74c3c">*</span></label
+          >
+          <input
+            type="text"
+            id="absentTeacher"
+            placeholder="e.g. NEELAM KUMARI"
+          />
         </div>
 
         <button class="btn" id="findBtn" disabled>
-          Show Schedule & Find Substitute
+          Show Schedule & Available Substitutes
         </button>
 
         <div class="result" id="result"></div>
@@ -245,28 +224,22 @@
     </div>
 
     <script>
-      let substitutionMap = {};
-      let teacherColumnMap = {};
-      let periodClassMap = {};
+      let masterData = []; // All rows from sheet
+      let allTeachers = new Set();
 
-      // Teacher name ke liye normal function
       function normalize(text) {
         return text
           ? String(text).trim().toLowerCase().replace(/\s+/g, " ")
           : "";
       }
 
-      // Class name ke liye strict function - space, -, (, ) sab hata do
-      function normalizeClass(text) {
-        return text
-          ? String(text)
-              .trim()
-              .toLowerCase()
-              .replace(/[^a-z0-9]/g, "")
-          : "";
+      function parseLectureNum(lectureText) {
+        // "Lect 7" -> 7
+        const match = String(lectureText).match(/Lect\s*(\d+)/i);
+        return match ? parseInt(match[1]) : null;
       }
 
-      function parseSheet(file) {
+      function parseMasterTimetable(file) {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (e) => {
@@ -279,66 +252,40 @@
                 defval: null,
               });
 
-              substitutionMap = {};
-              teacherColumnMap = {};
-              periodClassMap = {};
-              let totalFound = 0;
-              let currentPeriod = 0;
+              masterData = [];
+              allTeachers.clear();
 
-              for (let i = 0; i < jsonData.length; i++) {
+              // Row 0 is header, skip it
+              for (let i = 1; i < jsonData.length; i++) {
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
 
-                // Row 7 = index 6 ko teacher list maan lo
-                if (i === 6) {
-                  for (let col = 1; col < row.length; col++) {
-                    const teacherName = row[col]
-                      ? String(row[col]).trim()
-                      : null;
-                    if (teacherName) {
-                      teacherColumnMap[normalize(teacherName)] = col;
-                    }
-                  }
-                  continue;
-                }
+                const empName = row[2] ? String(row[2]).trim() : null; // EmployeeName
+                const className = row[4] ? String(row[4]).trim() : null; // Class
+                const section = row[6] ? String(row[6]).trim() : null; // Section
+                const subject = row[9] ? String(row[9]).trim() : null; // Subject Name
+                const lecture = row[10] ? String(row[10]).trim() : null; // Lecture Name
 
-                const periodNum = parseInt(row[0]);
-                if (!isNaN(periodNum) && periodNum >= 1 && periodNum <= 9) {
-                  currentPeriod = periodNum;
-                  periodClassMap[currentPeriod] = {};
-                }
+                if (!empName || !lecture) continue;
 
-                if (row[1] && String(row[1]).trim().toLowerCase() === "class") {
-                  const classRow = row;
-                  const teacherRow = jsonData[i + 1];
+                const lectureNum = parseLectureNum(lecture);
+                if (!lectureNum) continue;
 
-                  if (!teacherRow || currentPeriod === 0) continue;
-                  if (!substitutionMap[currentPeriod])
-                    substitutionMap[currentPeriod] = {};
+                const fullClass = section
+                  ? `${className} ${section}`
+                  : className;
 
-                  for (let col = 2; col <= 6; col++) {
-                    const className = classRow[col]
-                      ? String(classRow[col]).trim()
-                      : null;
-                    const teacherName = teacherRow[col]
-                      ? String(teacherRow[col]).trim()
-                      : null;
-
-                    if (className) {
-                      periodClassMap[currentPeriod][col] = className;
-                    }
-
-                    if (className && teacherName) {
-                      // IMPORTANT: Class name ko normalize karke save karo
-                      substitutionMap[currentPeriod][
-                        normalizeClass(className)
-                      ] = teacherName;
-                      totalFound++;
-                    }
-                  }
-                }
+                allTeachers.add(empName);
+                masterData.push({
+                  teacher: empName,
+                  teacherNorm: normalize(empName),
+                  class: fullClass,
+                  subject: subject,
+                  period: lectureNum,
+                });
               }
-              resolve(totalFound);
+
+              resolve(allTeachers.size);
             } catch (err) {
               reject(err);
             }
@@ -355,13 +302,13 @@
           if (!file) return;
 
           const statusEl = document.getElementById("fileStatus");
-          statusEl.textContent = "Processing file...";
+          statusEl.textContent = "Processing master timetable...";
           statusEl.classList.remove("error");
           document.getElementById("findBtn").disabled = true;
 
           try {
-            const count = await parseSheet(file);
-            statusEl.textContent = `Success! ${count} substitution entries found`;
+            const count = await parseMasterTimetable(file);
+            statusEl.textContent = `Success! ${count} teachers loaded from master timetable`;
             document.getElementById("findBtn").disabled = false;
           } catch (err) {
             statusEl.textContent = "Error: " + err.message;
@@ -374,92 +321,77 @@
         const absentTeacher = document
           .getElementById("absentTeacher")
           .value.trim();
-        const period = parseInt(document.getElementById("period").value);
-        const className = document.getElementById("className").value.trim();
-
-        if (!absentTeacher || !period || !className) {
-          alert("Please fill in all required fields");
+        if (!absentTeacher) {
+          alert("Please enter absent teacher name");
           return;
         }
 
+        const normalizedAbsent = normalize(absentTeacher);
         const resultDiv = document.getElementById("result");
         resultDiv.classList.add("show");
 
-        const normalizedAbsent = normalize(absentTeacher);
-        const teacherCol = teacherColumnMap[normalizedAbsent];
+        // 1. Absent teacher ka schedule nikalo
+        const teacherSchedule = masterData.filter(
+          (row) => row.teacherNorm === normalizedAbsent,
+        );
 
-        let scheduleHTML = "";
-        if (teacherCol !== undefined) {
-          let scheduleItems = [];
-          for (let p = 1; p <= 9; p++) {
-            if (periodClassMap[p] && periodClassMap[p][teacherCol]) {
-              scheduleItems.push({
-                period: p,
-                class: periodClassMap[p][teacherCol],
-              });
-            }
-          }
-
-          if (scheduleItems.length > 0) {
-            scheduleHTML = `
-              <div class="schedule-box">
-                <h3>Daily Schedule of ${absentTeacher}</h3>
-                <ul class="schedule-list">
-            `;
-            scheduleItems.forEach((item) => {
-              scheduleHTML += `
-                <li>
-                  <span>Class ${item.class}</span>
-                  <span class="period-badge">Period ${item.period}</span>
-                </li>
-              `;
-            });
-            scheduleHTML += `</ul></div>`;
-          } else {
-            scheduleHTML = `
-              <div class="schedule-box">
-                <h3>Daily Schedule of ${absentTeacher}</h3>
-                <p style="text-align: center; padding: 10px;">No classes found for this teacher in the sheet.</p>
-              </div>
-            `;
-          }
-        } else {
-          scheduleHTML = `
+        if (teacherSchedule.length === 0) {
+          resultDiv.innerHTML = `
             <div class="schedule-box">
-              <h3>Daily Schedule of ${absentTeacher}</h3>
-              <p style="text-align: center; padding: 10px;">Teacher not found in Row 7. Check spelling.</p>
+              <h3>Teacher Not Found</h3>
+              <p style="text-align: center; padding: 10px;">"${absentTeacher}" master timetable me nahi mila. Spelling check karo: ${Array.from(allTeachers).slice(0, 5).join(", ")}...</p>
             </div>
           `;
+          return;
         }
 
-        // IMPORTANT: Class name ko normalize karke dhoondo
-        const classKey = normalizeClass(className);
-        const assignedTeacher =
-          substitutionMap[period] && substitutionMap[period][classKey];
+        // Sort by period
+        teacherSchedule.sort((a, b) => a.period - b.period);
 
-        let substituteHTML = "";
-        if (assignedTeacher) {
-          substituteHTML = `
-            <div class="answer-box">
-              <h2>${assignedTeacher}</h2>
-              <p>Assigned as Substitute Teacher</p>
-              <p style="font-size: 14px; margin-top: 12px; opacity: 0.8;">
-                Period: ${period} | Class: ${className} | Absent Teacher: ${absentTeacher}
-              </p>
+        // 2. Har period ke liye free teachers nikalo
+        let scheduleHTML = `
+          <div class="schedule-box">
+            <h3>Daily Schedule of ${absentTeacher} & Available Substitutes</h3>
+        `;
+
+        teacherSchedule.forEach((lecture) => {
+          // Is period me kaun kaun busy hai
+          const busyTeachers = new Set(
+            masterData
+              .filter((row) => row.period === lecture.period)
+              .map((row) => row.teacherNorm),
+          );
+
+          // Free teachers = all - busy
+          const freeTeachers = Array.from(allTeachers).filter(
+            (t) =>
+              !busyTeachers.has(normalize(t)) &&
+              normalize(t) !== normalizedAbsent,
+          );
+
+          scheduleHTML += `
+            <div class="period-row">
+              <div class="period-header">
+                <div>
+                  <div class="class-name">Class ${lecture.class}</div>
+                  <div class="subject-name">${lecture.subject || "N/A"}</div>
+                </div>
+                <span class="period-badge">Period ${lecture.period}</span>
+              </div>
+              <div class="free-teachers">
+                <div class="free-teachers-title">Available for substitution:</div>
+                ${
+                  freeTeachers.length > 0
+                    ? `<div class="teacher-tags">${freeTeachers.map((t) => `<span class="teacher-tag">${t}</span>`).join("")}</div>`
+                    : `<div class="no-free">No teacher free in this period</div>`
+                }
+              </div>
             </div>
           `;
-        } else {
-          substituteHTML = `
-            <div class="not-found">
-              <h2>No Substitute Assigned</h2>
-              <p style="margin-top: 10px;">
-                No substitute teacher has been assigned for Period ${period} | Class ${className}
-              </p>
-            </div>
-          `;
-        }
+        });
 
-        resultDiv.innerHTML = scheduleHTML + substituteHTML;
+        scheduleHTML += `</div>`;
+        resultDiv.innerHTML = scheduleHTML;
       });
     </script>
   </body>
