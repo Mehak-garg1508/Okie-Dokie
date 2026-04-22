@@ -146,6 +146,42 @@
       .status.error {
         color: #e74c3c;
       }
+      .schedule-box {
+        background: #eef5ff;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 5px solid #2980b9;
+        color: #1a5276;
+        margin-bottom: 20px;
+      }
+      .schedule-box h3 {
+        font-size: 18px;
+        margin-bottom: 15px;
+        font-weight: 600;
+      }
+      .schedule-list {
+        list-style: none;
+      }
+      .schedule-list li {
+        padding: 8px 12px;
+        background: white;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .schedule-list li:last-child {
+        margin-bottom: 0;
+      }
+      .period-badge {
+        background: #34495e;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
@@ -165,8 +201,19 @@
         </div>
 
         <div class="section">
-          <div class="section-title">Step 2: Enter Substitution Details</div>
+          <div class="section-title">Step 2: Enter Details</div>
           <div class="form-row">
+            <div>
+              <label
+                >Absent Teacher Name
+                <span style="color: #e74c3c">*</span></label
+              >
+              <input
+                type="text"
+                id="absentTeacher"
+                placeholder="e.g. Neelu Dhall"
+              />
+            </div>
             <div>
               <label>Period <span style="color: #e74c3c">*</span></label>
               <select id="period">
@@ -184,23 +231,14 @@
             </div>
             <div>
               <label>Class <span style="color: #e74c3c">*</span></label>
-              <input type="text" id="className" placeholder="e.g. VIII-A" />
-            </div>
-            <div>
-              <label
-                >Absent Teacher Name
-                <span style="color: #e74c3c">*</span></label
-              >
-              <input
-                type="text"
-                id="absentTeacher"
-                placeholder="e.g. Neelam Rana"
-              />
+              <input type="text" id="className" placeholder="e.g. XI-C(ACC.)" />
             </div>
           </div>
         </div>
 
-        <button class="btn" id="findBtn" disabled>Find Assigned Teacher</button>
+        <button class="btn" id="findBtn" disabled>
+          Show Schedule & Find Substitute
+        </button>
 
         <div class="result" id="result"></div>
       </div>
@@ -208,10 +246,23 @@
 
     <script>
       let substitutionMap = {};
+      let teacherColumnMap = {};
+      let periodClassMap = {};
 
+      // Teacher name ke liye normal function
       function normalize(text) {
         return text
           ? String(text).trim().toLowerCase().replace(/\s+/g, " ")
+          : "";
+      }
+
+      // Class name ke liye strict function - space, -, (, ) sab hata do
+      function normalizeClass(text) {
+        return text
+          ? String(text)
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, "")
           : "";
       }
 
@@ -229,6 +280,8 @@
               });
 
               substitutionMap = {};
+              teacherColumnMap = {};
+              periodClassMap = {};
               let totalFound = 0;
               let currentPeriod = 0;
 
@@ -236,9 +289,23 @@
                 const row = jsonData[i];
                 if (!row || row.length === 0) continue;
 
+                // Row 7 = index 6 ko teacher list maan lo
+                if (i === 6) {
+                  for (let col = 1; col < row.length; col++) {
+                    const teacherName = row[col]
+                      ? String(row[col]).trim()
+                      : null;
+                    if (teacherName) {
+                      teacherColumnMap[normalize(teacherName)] = col;
+                    }
+                  }
+                  continue;
+                }
+
                 const periodNum = parseInt(row[0]);
                 if (!isNaN(periodNum) && periodNum >= 1 && periodNum <= 9) {
                   currentPeriod = periodNum;
+                  periodClassMap[currentPeriod] = {};
                 }
 
                 if (row[1] && String(row[1]).trim().toLowerCase() === "class") {
@@ -257,9 +324,15 @@
                       ? String(teacherRow[col]).trim()
                       : null;
 
+                    if (className) {
+                      periodClassMap[currentPeriod][col] = className;
+                    }
+
                     if (className && teacherName) {
-                      substitutionMap[currentPeriod][normalize(className)] =
-                        teacherName;
+                      // IMPORTANT: Class name ko normalize karke save karo
+                      substitutionMap[currentPeriod][
+                        normalizeClass(className)
+                      ] = teacherName;
                       totalFound++;
                     }
                   }
@@ -288,7 +361,7 @@
 
           try {
             const count = await parseSheet(file);
-            statusEl.textContent = `Success! ${count} substitution entries found and loaded`;
+            statusEl.textContent = `Success! ${count} substitution entries found`;
             document.getElementById("findBtn").disabled = false;
           } catch (err) {
             statusEl.textContent = "Error: " + err.message;
@@ -298,13 +371,13 @@
         });
 
       document.getElementById("findBtn").addEventListener("click", function () {
-        const period = parseInt(document.getElementById("period").value);
-        const className = document.getElementById("className").value.trim();
         const absentTeacher = document
           .getElementById("absentTeacher")
           .value.trim();
+        const period = parseInt(document.getElementById("period").value);
+        const className = document.getElementById("className").value.trim();
 
-        if (!period || !className || !absentTeacher) {
+        if (!absentTeacher || !period || !className) {
           alert("Please fill in all required fields");
           return;
         }
@@ -312,30 +385,81 @@
         const resultDiv = document.getElementById("result");
         resultDiv.classList.add("show");
 
-        const classKey = normalize(className);
+        const normalizedAbsent = normalize(absentTeacher);
+        const teacherCol = teacherColumnMap[normalizedAbsent];
+
+        let scheduleHTML = "";
+        if (teacherCol !== undefined) {
+          let scheduleItems = [];
+          for (let p = 1; p <= 9; p++) {
+            if (periodClassMap[p] && periodClassMap[p][teacherCol]) {
+              scheduleItems.push({
+                period: p,
+                class: periodClassMap[p][teacherCol],
+              });
+            }
+          }
+
+          if (scheduleItems.length > 0) {
+            scheduleHTML = `
+              <div class="schedule-box">
+                <h3>Daily Schedule of ${absentTeacher}</h3>
+                <ul class="schedule-list">
+            `;
+            scheduleItems.forEach((item) => {
+              scheduleHTML += `
+                <li>
+                  <span>Class ${item.class}</span>
+                  <span class="period-badge">Period ${item.period}</span>
+                </li>
+              `;
+            });
+            scheduleHTML += `</ul></div>`;
+          } else {
+            scheduleHTML = `
+              <div class="schedule-box">
+                <h3>Daily Schedule of ${absentTeacher}</h3>
+                <p style="text-align: center; padding: 10px;">No classes found for this teacher in the sheet.</p>
+              </div>
+            `;
+          }
+        } else {
+          scheduleHTML = `
+            <div class="schedule-box">
+              <h3>Daily Schedule of ${absentTeacher}</h3>
+              <p style="text-align: center; padding: 10px;">Teacher not found in Row 7. Check spelling.</p>
+            </div>
+          `;
+        }
+
+        // IMPORTANT: Class name ko normalize karke dhoondo
+        const classKey = normalizeClass(className);
         const assignedTeacher =
           substitutionMap[period] && substitutionMap[period][classKey];
 
+        let substituteHTML = "";
         if (assignedTeacher) {
-          resultDiv.innerHTML = `
-                    <div class="answer-box">
-                        <h2>${assignedTeacher}</h2>
-                        <p>Assigned as Substitute Teacher</p>
-                        <p style="font-size: 14px; margin-top: 12px; opacity: 0.8;">
-                            Period: ${period} | Class: ${className} | Absent Teacher: ${absentTeacher}
-                        </p>
-                    </div>
-                `;
+          substituteHTML = `
+            <div class="answer-box">
+              <h2>${assignedTeacher}</h2>
+              <p>Assigned as Substitute Teacher</p>
+              <p style="font-size: 14px; margin-top: 12px; opacity: 0.8;">
+                Period: ${period} | Class: ${className} | Absent Teacher: ${absentTeacher}
+              </p>
+            </div>
+          `;
         } else {
-          resultDiv.innerHTML = `
-                    <div class="not-found">
-                        <h2>No Substitute Assigned</h2>
-                        <p style="margin-top: 10px;">
-                            No substitute teacher has been assigned for Period ${period} | Class ${className} in the uploaded sheet
-                        </p>
-                    </div>
-                `;
+          substituteHTML = `
+            <div class="not-found">
+              <h2>No Substitute Assigned</h2>
+              <p style="margin-top: 10px;">
+                No substitute teacher has been assigned for Period ${period} | Class ${className}
+              </p>
+            </div>
+          `;
         }
+
+        resultDiv.innerHTML = scheduleHTML + substituteHTML;
       });
     </script>
   </body>
