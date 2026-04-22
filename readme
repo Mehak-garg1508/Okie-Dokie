@@ -1,0 +1,41 @@
+
+TEACHER SUBSTITUTION MANAGEMENT SYSTEM
+Version 1.0
+
+
+DESCRIPTION:
+This is a web-based application designed to help school administration
+quickly identify available teachers for substitution when a teacher is absent.
+
+SYSTEM REQUIREMENTS:
+- Any modern web browser (Chrome, Edge, Firefox)
+- No internet connection required after initial load
+- No software installation required
+
+HOW TO USE:
+1. Open the file "index.html" in your web browser
+2. Upload the Excel timetable files for each class (Step 1)
+   - Supported format:.xlsx or.xls
+   - Timetable structure: Days in columns, Periods in rows
+   - Cell format: "Subject (Teacher Name)"
+3. Select Day, enter Period Number, and enter Absent Teacher Name (Step 2)
+4. Click "Generate Available Teachers List"
+5. The system will display all teachers who are free in that period
+
+FEATURES:
+- Case-insensitive search: Accepts any capitalization for names
+- Multi-class support: Checks across all uploaded timetables
+- Instant results: No manual checking required
+- Print-friendly: Results can be printed directly from browser
+
+DATA PRIVACY:
+- All data processing happens locally in your browser
+- No data is uploaded to any server
+- Timetable files remain on your computer
+
+SUPPORT:
+For technical assistance, contact: [Tera Naam/Company]
+Email: [Tera Email]
+Phone: [Tera Number]
+
+© 2026 [Teri Company Ka Naam]. All Rights Reserved.
