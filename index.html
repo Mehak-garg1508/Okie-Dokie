@@ -7,91 +7,443 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: "Segoe UI", sans-serif; background: #f5f7fa; }
-      .app-wrapper { display: flex; min-height: 100vh; }
-      .sidebar { width: 220px; background: #2c3e50; color: #fff; }
-      .sidebar-header { padding: 25px 20px; background: #c0392b; text-align: center; }
-      .sidebar-header h2 { font-size: 18px; }
-      .nav-menu { padding: 15px 0; }
-      .nav-item { padding: 14px 20px; cursor: pointer; border-left: 4px solid transparent; display: flex; gap: 10px; }
-      .nav-item.active, .nav-item:hover { background: #34495e; border-left-color: #c0392b; }
-      .main-content { flex: 1; padding: 20px; overflow: auto; }
-      .container { max-width: 1600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); }
-      .content { padding: 30px; }
-      .section { margin-bottom: 25px; padding: 20px; border: 1px solid #e0e0e0; border-radius: 6px; }
-      .section-title { font-size: 16px; font-weight: 600; color: #c0392b; margin-bottom: 15px; border-bottom: 2px solid #c0392b; padding-bottom: 8px; }
-      input { width: 100%; padding: 10px; border: 1px solid #bdc3c7; border-radius: 4px; }
-      input:focus { outline: none; border-color: #c0392b; }
-      .autocomplete-container { position: relative; }
-      .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #bdc3c7; max-height: 200px; overflow-y: auto; z-index: 1000; display: none; }
-      .autocomplete-list.show { display: block; }
-      .autocomplete-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #ecf0f1; }
-      .autocomplete-item:hover { background: #f8f9fa; }
-      .btn { width: 100%; padding: 14px; background: #c0392b; color: #fff; border: none; border-radius: 4px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 15px; }
-      .btn:disabled { background: #95a5a6; }
-      .result { margin-top: 25px; display: none; }
-      .result.show { display: block; }
-      .status { font-size: 13px; margin-top: 8px; color: #27ae60; }
-      .schedule-box { background: #eef5ff; padding: 20px; border-radius: 8px; border-left: 5px solid #2980b9; margin-bottom: 20px; }
-      .schedule-box h3 { font-size: 18px; margin-bottom: 15px; }
-      .period-row { background: #fff; padding: 15px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #d6eaf8; display: flex; gap: 15px; }
-      .period-left { flex: 1; }
-      .period-right { width: 280px; border-left: 2px dashed #e0e0e0; padding-left: 15px; }
-      .period-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-      .class-name { font-size: 16px; font-weight: 600; }
-      .subject-name { font-size: 13px; color: #7f8c8d; }
-      .date-badge { background: #c0392b; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 13px; }
-      .period-badge { background: #34495e; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
-      .teacher-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-      .teacher-tag { background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 4px; font-size: 12px; border: 1px solid #c3e6cb; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-      .teacher-tag:hover { background: #b1dfbb; }
-      .teacher-tag.disabled { background: #f8d7da; color: #721c24; border-color: #f5c6cb; cursor: not-allowed; opacity: 0.6; }
-      .lect-count { background: #155724; color: #fff; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
-      .teacher-tag.disabled .lect-count { background: #721c24; }
-      .load-low { background: #2ecc71 !important; }
-      .load-mid { background: #f39c12 !important; }
-      .load-high { background: #c0392b !important; }
-      .assigned-box { background: #fff8e1; padding: 12px; border-radius: 6px; border: 1px solid #ffeaa7; height: 100%; }
-      .assigned-title { font-size: 11px; font-weight: 600; color: #e67e22; margin-bottom: 8px; text-transform: uppercase; }
-      .assigned-teacher { font-size: 15px; font-weight: 700; color: #c0392b; margin-bottom: 8px; }
-      .assigned-empty { color: #95a5a6; text-align: center; padding: 30px 0; font-style: italic; font-size: 12px; }
-      .remove-btn { width: 100%; margin-top: 8px; padding: 6px; background: #c0392b; color: #fff; border: none; border-radius: 3px; font-size: 12px; cursor: pointer; }
-      .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; font-size: 11px; color: #555; }
-      .legend span { display: inline-flex; align-items: center; gap: 4px; }
-      .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-      .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-      .report-table th { background: #c0392b; color: #fff; padding: 10px; border: 1px solid #a93226; }
-      .report-table td { padding: 10px; border: 1px solid #ecf0f1; text-align: center; vertical-align: top; }
-      .report-table td strong { color: #c0392b; }
-      .report-summary { background: #e8f5e9; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #27ae60; font-weight: 600; color: #27ae60; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #f5f7fa;
+      }
+      .app-wrapper {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 220px;
+        background: #2c3e50;
+        color: #fff;
+      }
+      .sidebar-header {
+        padding: 25px 20px;
+        background: #c0392b;
+        text-align: center;
+      }
+      .sidebar-header h2 {
+        font-size: 16px;
+        line-height: 1.3;
+      }
+      .nav-menu {
+        padding: 15px 0;
+      }
+      .nav-item {
+        padding: 14px 20px;
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        display: flex;
+        gap: 10px;
+      }
+      .nav-item.active,
+      .nav-item:hover {
+        background: #34495e;
+        border-left-color: #c0392b;
+      }
+      .main-content {
+        flex: 1;
+        padding: 20px;
+        overflow: auto;
+      }
+      .container {
+        max-width: 1600px;
+        margin: auto;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .content {
+        padding: 30px;
+      }
+      .section {
+        margin-bottom: 25px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+      }
+      .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #c0392b;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #c0392b;
+        padding-bottom: 8px;
+      }
+      input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+      }
+      input:focus {
+        outline: none;
+        border-color: #c0392b;
+      }
+      .autocomplete-container {
+        position: relative;
+      }
+      .autocomplete-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #bdc3c7;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+      }
+      .autocomplete-list.show {
+        display: block;
+      }
+      .autocomplete-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #ecf0f1;
+      }
+      .autocomplete-item:hover {
+        background: #f8f9fa;
+      }
+      .btn {
+        width: 100%;
+        padding: 14px;
+        background: #c0392b;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 15px;
+      }
+      .btn:disabled {
+        background: #95a5a6;
+      }
+      .result {
+        margin-top: 25px;
+        display: none;
+      }
+      .result.show {
+        display: block;
+      }
+      .status {
+        font-size: 13px;
+        margin-top: 8px;
+        color: #27ae60;
+      }
+      .schedule-box {
+        background: #eef5ff;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 5px solid #2980b9;
+        margin-bottom: 20px;
+      }
+      .schedule-box h3 {
+        font-size: 18px;
+        margin-bottom: 15px;
+      }
+      .period-row {
+        background: #fff;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        border: 1px solid #d6eaf8;
+        display: flex;
+        gap: 15px;
+      }
+      .period-left {
+        flex: 1;
+      }
+      .period-right {
+        width: 280px;
+        border-left: 2px dashed #e0e0e0;
+        padding-left: 15px;
+      }
+      .period-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .class-name {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .subject-name {
+        font-size: 13px;
+        color: #7f8c8d;
+      }
+      .date-badge {
+        background: #c0392b;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 13px;
+      }
+      .period-badge {
+        background: #34495e;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+      }
+      .teacher-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .teacher-tag {
+        background: #d4edda;
+        color: #155724;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        border: 1px solid #c3e6cb;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .teacher-tag:hover {
+        background: #b1dfbb;
+      }
+      .teacher-tag.disabled {
+        background: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .lect-count {
+        background: #155724;
+        color: #fff;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .teacher-tag.disabled .lect-count {
+        background: #721c24;
+      }
+      .load-low {
+        background: #2ecc71 !important;
+      }
+      .load-mid {
+        background: #f39c12 !important;
+      }
+      .load-high {
+        background: #c0392b !important;
+      }
+      .assigned-box {
+        background: #fff8e1;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #ffeaa7;
+        height: 100%;
+      }
+      .assigned-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #e67e22;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .assigned-teacher {
+        font-size: 15px;
+        font-weight: 700;
+        color: #c0392b;
+        margin-bottom: 8px;
+      }
+      .assigned-empty {
+        color: #95a5a6;
+        text-align: center;
+        padding: 30px 0;
+        font-style: italic;
+        font-size: 12px;
+      }
+      .remove-btn {
+        width: 100%;
+        margin-top: 8px;
+        padding: 6px;
+        background: #c0392b;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .legend {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #555;
+      }
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .legend i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+      .report-table th {
+        background: #c0392b;
+        color: #fff;
+        padding: 10px;
+        border: 1px solid #a93226;
+      }
+      .report-table td {
+        padding: 10px;
+        border: 1px solid #ecf0f1;
+        text-align: center;
+        vertical-align: top;
+      }
+      .report-table td strong {
+        color: #c0392b;
+      }
+      .report-summary {
+        background: #e8f5e9;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        border-left: 4px solid #27ae60;
+        font-weight: 600;
+        color: #27ae60;
+      }
+      .page-header {
+        background: linear-gradient(135deg, #c0392b, #a93226);
+        color: #fff;
+        padding: 22px 30px;
+        border-radius: 8px 8px 0 0;
+        text-align: center;
+        margin-bottom: 0;
+      }
+      .page-header h1 {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+      .page-header p {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+      .container {
+        overflow: hidden;
+      }
     </style>
   </head>
   <body>
     <div class="app-wrapper">
       <div class="sidebar">
         <div class="sidebar-header">
-          <h2>GITA NIKETAN</h2>
-          <p>Substitution System</p>
+          <h2>FINDING AVAILABLE TEACHER</h2>
         </div>
         <div class="nav-menu">
-          <div class="nav-item active" data-page="adjustment">📋 Adjustment</div>
+          <div class="nav-item active" data-page="adjustment">
+            📋 Adjustment
+          </div>
           <div class="nav-item" data-page="report">📊 Report</div>
         </div>
       </div>
       <div class="main-content">
         <div class="page active" id="adjustment-page">
           <div class="container">
+            <div class="page-header">
+              <h1>GITA NIKETAN AWASIYA VIDYALAYA</h1>
+              <p>Substitution Management — Adjustment</p>
+            </div>
             <div class="content">
               <div class="section">
-                <div class="section-title">Step 1: Upload Master Timetable</div>
-                <input type="file" id="sheetFile" accept=".xlsx,.xls" />
-                <div class="status" id="fileStatus">Please upload file</div>
+                <div class="section-title">Step 1: Master Timetable</div>
+                <div
+                  id="savedBox"
+                  style="
+                    display: none;
+                    background: #e8f5e9;
+                    border: 1px solid #27ae60;
+                    padding: 12px;
+                    border-radius: 6px;
+                    margin-bottom: 10px;
+                  "
+                >
+                  <div
+                    style="font-weight: 600; color: #27ae60; margin-bottom: 6px"
+                  >
+                    ✅ Saved Timetable Loaded
+                  </div>
+                  <div
+                    id="savedInfo"
+                    style="font-size: 13px; color: #555; margin-bottom: 10px"
+                  ></div>
+                  <button
+                    type="button"
+                    id="changeBtn"
+                    style="
+                      background: #2980b9;
+                      color: #fff;
+                      border: none;
+                      padding: 8px 14px;
+                      border-radius: 4px;
+                      cursor: pointer;
+                      margin-right: 6px;
+                      font-size: 13px;
+                    "
+                  >
+                    🔄 Change Timetable
+                  </button>
+                  <button
+                    type="button"
+                    id="clearBtn"
+                    style="
+                      background: #c0392b;
+                      color: #fff;
+                      border: none;
+                      padding: 8px 14px;
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 13px;
+                    "
+                  >
+                    🗑️ Clear Saved
+                  </button>
+                </div>
+                <div id="uploadBox">
+                  <input type="file" id="sheetFile" accept=".xlsx,.xls" />
+                  <div class="status" id="fileStatus">
+                    Please upload file (will be saved for next time)
+                  </div>
+                </div>
               </div>
               <div class="section">
                 <div class="section-title">Step 2: Enter Absent Teacher</div>
                 <div class="autocomplete-container">
-                  <input type="text" id="absentTeacher" placeholder="Type to search..." />
+                  <input
+                    type="text"
+                    id="absentTeacher"
+                    placeholder="Type to search..."
+                  />
                   <div class="autocomplete-list" id="teacherDropdown"></div>
                 </div>
               </div>
@@ -102,11 +454,25 @@
         </div>
         <div class="page" id="report-page" style="display: none">
           <div class="container">
+            <div class="page-header">
+              <h1>GITA NIKETAN AWASIYA VIDYALAYA</h1>
+              <p>Substitution Report</p>
+            </div>
             <div class="content">
               <div class="section">
-                <div class="section-title">Substitution Report</div>
                 <div id="reportContent"></div>
-                <button class="btn" id="exportBtn" style="display: none; background: #27ae60; width: auto; padding: 10px 20px;">Download PDF</button>
+                <button
+                  class="btn"
+                  id="exportBtn"
+                  style="
+                    display: none;
+                    background: #27ae60;
+                    width: auto;
+                    padding: 10px 20px;
+                  "
+                >
+                  Download PDF
+                </button>
               </div>
             </div>
           </div>
@@ -115,33 +481,98 @@
     </div>
 
     <script>
-      let masterData = [], allTeachers = new Set(), assignments = [], absentTeachersList = [];
+      let masterData = [],
+        allTeachers = new Set(),
+        assignments = [],
+        absentTeachersList = [];
+      const STORAGE_KEY = "gn_master_timetable_v1";
+
+      function saveMasterToStorage(fileName) {
+        try {
+          const payload = {
+            fileName: fileName || "timetable.xlsx",
+            savedAt: new Date().toISOString(),
+            teachers: [...allTeachers],
+            masterData: masterData,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (e) {
+          alert("Save failed (storage full?): " + e.message);
+        }
+      }
+
+      function loadMasterFromStorage() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        try {
+          const p = JSON.parse(raw);
+          masterData = p.masterData || [];
+          allTeachers = new Set(p.teachers || []);
+          assignments = [];
+          absentTeachersList = [];
+          showSavedBox(p);
+          document.getElementById("findBtn").disabled = false;
+          setupAutocomplete();
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function showSavedBox(p) {
+        document.getElementById("savedBox").style.display = "block";
+        document.getElementById("uploadBox").style.display = "none";
+        const dt = p.savedAt ? new Date(p.savedAt).toLocaleString() : "";
+        document.getElementById("savedInfo").innerHTML =
+          `<b>${p.fileName}</b> — ${(p.teachers || []).length} teachers, ${(p.masterData || []).length} entries<br><span style="color:#888;font-size:12px">Saved: ${dt}</span>`;
+      }
+
+      function showUploadBox() {
+        document.getElementById("savedBox").style.display = "none";
+        document.getElementById("uploadBox").style.display = "block";
+        document.getElementById("sheetFile").value = "";
+      }
 
       const periodTimes = {
-        1: "08:00-08:40", 2: "08:40-09:20", 3: "09:20-10:00",
-        4: "10:00-10:40", 5: "10:40-11:20", 6: "11:20-12:00",
-        7: "12:30-01:10", 8: "01:10-01:50", 9: "01:50-02:30",
+        1: "08:00-08:40",
+        2: "08:40-09:20",
+        3: "09:20-10:00",
+        4: "10:00-10:40",
+        5: "10:40-11:20",
+        6: "11:20-12:00",
+        7: "12:30-01:10",
+        8: "01:10-01:50",
+        9: "01:50-02:30",
       };
 
       document.querySelectorAll(".nav-item").forEach(
-        (i) => (i.onclick = () => {
-          document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
-          i.classList.add("active");
-          document.querySelectorAll(".page").forEach((p) => (p.style.display = "none"));
-          document.getElementById(i.dataset.page + "-page").style.display = "block";
-          if (i.dataset.page === "report") renderReport();
-        }),
+        (i) =>
+          (i.onclick = () => {
+            document
+              .querySelectorAll(".nav-item")
+              .forEach((n) => n.classList.remove("active"));
+            i.classList.add("active");
+            document
+              .querySelectorAll(".page")
+              .forEach((p) => (p.style.display = "none"));
+            document.getElementById(i.dataset.page + "-page").style.display =
+              "block";
+            if (i.dataset.page === "report") renderReport();
+          }),
       );
 
-      const normalize = (t) => t ? String(t).trim().toLowerCase().replace(/\s+/g, " ") : "";
-      const parseLecture = (t) => (String(t).match(/Lect\s*(\d+)/i) || [])[1] * 1;
+      const normalize = (t) =>
+        t ? String(t).trim().toLowerCase().replace(/\s+/g, " ") : "";
+      const parseLecture = (t) =>
+        (String(t).match(/Lect\s*(\d+)/i) || [])[1] * 1;
 
       // Count distinct lectures (by date+period) for a teacher on a given date
       function lecturesOnDate(teacher, date) {
         const tn = normalize(teacher);
         const set = new Set();
         masterData.forEach((r) => {
-          if (r.teacherNorm === tn && r.dateFormatted === date) set.add(r.period);
+          if (r.teacherNorm === tn && r.dateFormatted === date)
+            set.add(r.period);
         });
         return set.size;
       }
@@ -158,41 +589,79 @@
           alert("⚠️ " + t + " absent hai!");
           return;
         }
-        const already = assignments.find((x) => x.date === d && x.period === p && x.teacher === t);
-        if (already) { alert("⚠️ " + t + " already assigned to " + already.absentTeacher); return; }
-        assignments = assignments.filter(
-          (x) => !(x.date === d && x.period === p && JSON.stringify(x.classes) === JSON.stringify(c) && x.absentTeacher === a),
+        const already = assignments.find(
+          (x) => x.date === d && x.period === p && x.teacher === t,
         );
-        assignments.push({ teacher: t, classes: c, subject: sub, period: p, date: d, absentTeacher: a });
+        if (already) {
+          alert("⚠️ " + t + " already assigned to " + already.absentTeacher);
+          return;
+        }
+        assignments = assignments.filter(
+          (x) =>
+            !(
+              x.date === d &&
+              x.period === p &&
+              JSON.stringify(x.classes) === JSON.stringify(c) &&
+              x.absentTeacher === a
+            ),
+        );
+        assignments.push({
+          teacher: t,
+          classes: c,
+          subject: sub,
+          period: p,
+          date: d,
+          absentTeacher: a,
+        });
         renderSchedule();
       }
       function unassignTeacher(d, p, cls, a) {
         const c = cls.split("||");
         assignments = assignments.filter(
-          (x) => !(x.date === d && x.period === p && JSON.stringify(x.classes) === JSON.stringify(c) && x.absentTeacher === a),
+          (x) =>
+            !(
+              x.date === d &&
+              x.period === p &&
+              JSON.stringify(x.classes) === JSON.stringify(c) &&
+              x.absentTeacher === a
+            ),
         );
         renderSchedule();
       }
 
       function setupAutocomplete() {
-        const inp = document.getElementById("absentTeacher"), dd = document.getElementById("teacherDropdown");
+        const inp = document.getElementById("absentTeacher"),
+          dd = document.getElementById("teacherDropdown");
         inp.oninput = () => {
           const v = inp.value.toLowerCase();
           dd.innerHTML = "";
-          if (!v) { dd.classList.remove("show"); return; }
-          const m = [...allTeachers].filter((t) => t.toLowerCase().includes(v)).slice(0, 8);
-          if (!m.length) { dd.classList.remove("show"); return; }
+          if (!v) {
+            dd.classList.remove("show");
+            return;
+          }
+          const m = [...allTeachers]
+            .filter((t) => t.toLowerCase().includes(v))
+            .slice(0, 8);
+          if (!m.length) {
+            dd.classList.remove("show");
+            return;
+          }
           m.forEach((t) => {
             const d = document.createElement("div");
             d.className = "autocomplete-item";
             d.textContent = t;
-            d.onclick = () => { inp.value = t; dd.classList.remove("show"); document.getElementById("findBtn").click(); };
+            d.onclick = () => {
+              inp.value = t;
+              dd.classList.remove("show");
+              document.getElementById("findBtn").click();
+            };
             dd.appendChild(d);
           });
           dd.classList.add("show");
         };
         document.addEventListener("click", (e) => {
-          if (!e.target.closest(".autocomplete-container")) dd.classList.remove("show");
+          if (!e.target.closest(".autocomplete-container"))
+            dd.classList.remove("show");
         });
       }
 
@@ -202,37 +671,88 @@
         const data = new Uint8Array(await f.arrayBuffer());
         const wb = XLSX.read(data, { type: "array" });
         const sh = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sh, { header: 1, defval: null, raw: false });
+        const json = XLSX.utils.sheet_to_json(sh, {
+          header: 1,
+          defval: null,
+          raw: false,
+        });
         const h = json[0].map((x) => String(x || "").toLowerCase());
         const ci = {
-          n: h.findIndex((x) => x.includes("employeename") || x.includes("teacher")),
+          n: h.findIndex(
+            (x) => x.includes("employeename") || x.includes("teacher"),
+          ),
           d: h.findIndex((x) => x.includes("date")),
           c: h.findIndex((x) => x === "class"),
           s: h.findIndex((x) => x.includes("section")),
           u: h.findIndex((x) => x.includes("subject")),
           l: h.findIndex((x) => x.includes("lecture")),
         };
-        masterData = []; allTeachers.clear(); assignments = []; absentTeachersList = [];
+        masterData = [];
+        allTeachers.clear();
+        assignments = [];
+        absentTeachersList = [];
         for (let i = 1; i < json.length; i++) {
           const r = json[i];
           if (!r) continue;
-          const name = r[ci.n]?.trim(), date = r[ci.d], cls = r[ci.c],
-            sec = ci.s > -1 ? r[ci.s] : "", sub = r[ci.u], lec = r[ci.l];
+          const name = r[ci.n]?.trim(),
+            date = r[ci.d],
+            cls = r[ci.c],
+            sec = ci.s > -1 ? r[ci.s] : "",
+            sub = r[ci.u],
+            lec = r[ci.l];
           if (!name || !lec || !date) continue;
           const p = parseLecture(lec);
           if (!p) continue;
           const full = sec ? `${cls} ${sec}` : cls;
           allTeachers.add(name);
           masterData.push({
-            teacher: name, teacherNorm: normalize(name),
-            dateFormatted: String(date).trim(), period: p,
-            subject: sub, class: full,
+            teacher: name,
+            teacherNorm: normalize(name),
+            dateFormatted: String(date).trim(),
+            period: p,
+            subject: sub,
+            class: full,
           });
         }
-        document.getElementById("fileStatus").textContent = `Success! ${allTeachers.size} teachers`;
+        document.getElementById("fileStatus").textContent =
+          `Success! ${allTeachers.size} teachers (saved for next time)`;
         document.getElementById("findBtn").disabled = false;
         setupAutocomplete();
+        saveMasterToStorage(f.name);
+        showSavedBox({
+          fileName: f.name,
+          savedAt: new Date().toISOString(),
+          teachers: [...allTeachers],
+          masterData,
+        });
       };
+
+      document.getElementById("changeBtn").onclick = () => {
+        if (
+          confirm(
+            "Upload a new timetable? Current saved data will be replaced after upload.",
+          )
+        )
+          showUploadBox();
+      };
+      document.getElementById("clearBtn").onclick = () => {
+        if (!confirm("Delete saved timetable permanently?")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        masterData = [];
+        allTeachers.clear();
+        assignments = [];
+        absentTeachersList = [];
+        document.getElementById("findBtn").disabled = true;
+        document.getElementById("result").classList.remove("show");
+        document.getElementById("absentTeacher").value = "";
+        showUploadBox();
+        document.getElementById("fileStatus").textContent =
+          "Saved data cleared. Please upload file.";
+      };
+
+      window.addEventListener("DOMContentLoaded", () => {
+        loadMasterFromStorage();
+      });
 
       document.getElementById("findBtn").onclick = () => {
         document.getElementById("result").classList.add("show");
@@ -241,10 +761,15 @@
 
       function renderSchedule() {
         const inp = document.getElementById("absentTeacher").value.trim();
-        const teacher = [...allTeachers].find((t) => normalize(t) === normalize(inp));
+        const teacher = [...allTeachers].find(
+          (t) => normalize(t) === normalize(inp),
+        );
         if (!teacher) return;
-        if (!absentTeachersList.includes(teacher)) absentTeachersList.push(teacher);
-        const raw = masterData.filter((r) => r.teacherNorm === normalize(teacher));
+        if (!absentTeachersList.includes(teacher))
+          absentTeachersList.push(teacher);
+        const raw = masterData.filter(
+          (r) => r.teacherNorm === normalize(teacher),
+        );
         const grouped = {};
         raw.forEach((r) => {
           const k = `${r.dateFormatted}|${r.period}|${r.subject}`;
@@ -252,7 +777,9 @@
           grouped[k].classes.push(r.class);
         });
 
-        const schedule = Object.values(grouped).sort((a, b) => a.period - b.period);
+        const schedule = Object.values(grouped).sort(
+          (a, b) => a.period - b.period,
+        );
 
         let html = `<div class="schedule-box"><h3>Schedule of ${teacher}</h3>
           <div class="legend">
@@ -263,25 +790,46 @@
           </div>`;
         schedule.forEach((lec) => {
           const assigned = assignments.find(
-            (a) => a.date === lec.dateFormatted && a.period === lec.period &&
-              JSON.stringify(a.classes) === JSON.stringify(lec.classes) && a.absentTeacher === teacher,
+            (a) =>
+              a.date === lec.dateFormatted &&
+              a.period === lec.period &&
+              JSON.stringify(a.classes) === JSON.stringify(lec.classes) &&
+              a.absentTeacher === teacher,
           );
           const busy = new Set(
-            masterData.filter((r) => r.dateFormatted === lec.dateFormatted && r.period === lec.period)
+            masterData
+              .filter(
+                (r) =>
+                  r.dateFormatted === lec.dateFormatted &&
+                  r.period === lec.period,
+              )
               .map((r) => r.teacherNorm),
           );
           const free = [...allTeachers]
-            .filter((t) => !busy.has(normalize(t)) && normalize(t) !== normalize(teacher))
-            .map((t) => ({ name: t, count: lecturesOnDate(t, lec.dateFormatted) }))
+            .filter(
+              (t) =>
+                !busy.has(normalize(t)) && normalize(t) !== normalize(teacher),
+            )
+            .map((t) => ({
+              name: t,
+              count: lecturesOnDate(t, lec.dateFormatted),
+            }))
             .sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
 
           html += `<div class="period-row"><div class="period-left"><div class="period-header"><div><div class="class-name">${lec.classes.join(", ")}</div><div class="subject-name">${lec.subject || ""}</div></div><div><span class="date-badge">${lec.dateFormatted}</span> <span class="period-badge">P${lec.period} (${periodTimes[lec.period] || ""})</span></div></div><div class="teacher-tags">`;
-          html += free.map((f) => {
-            const t = f.name;
-            const already = assignments.find((a) => a.date === lec.dateFormatted && a.period === lec.period && a.teacher === t);
-            const badge = `<span class="lect-count ${loadClass(f.count)}" title="${f.count} lectures on ${lec.dateFormatted}">${f.count}</span>`;
-            return `<span class="teacher-tag ${already ? "disabled" : ""}" ${already ? "" : "onclick=\"assignTeacher('" + t.replace(/'/g, "\\'") + "','" + lec.classes.join("||") + "','" + (lec.subject || "").replace(/'/g, "\\'") + "'," + lec.period + ",'" + lec.dateFormatted + "','" + teacher.replace(/'/g, "\\'") + "')\""}>${t} ${badge}</span>`;
-          }).join("");
+          html += free
+            .map((f) => {
+              const t = f.name;
+              const already = assignments.find(
+                (a) =>
+                  a.date === lec.dateFormatted &&
+                  a.period === lec.period &&
+                  a.teacher === t,
+              );
+              const badge = `<span class="lect-count ${loadClass(f.count)}" title="${f.count} lectures on ${lec.dateFormatted}">${f.count}</span>`;
+              return `<span class="teacher-tag ${already ? "disabled" : ""}" ${already ? "" : "onclick=\"assignTeacher('" + t.replace(/'/g, "\\'") + "','" + lec.classes.join("||") + "','" + (lec.subject || "").replace(/'/g, "\\'") + "'," + lec.period + ",'" + lec.dateFormatted + "','" + teacher.replace(/'/g, "\\'") + "')\""}>${t} ${badge}</span>`;
+            })
+            .join("");
           html += `</div></div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
           html += assigned
             ? `<div class="assigned-teacher">${assigned.teacher} <span class="lect-count ${loadClass(lecturesOnDate(assigned.teacher, assigned.date))}">${lecturesOnDate(assigned.teacher, assigned.date)}</span></div><div style="font-size:11px">${assigned.classes.join(", ")}</div><button class="remove-btn" onclick="unassignTeacher('${assigned.date}',${assigned.period},'${assigned.classes.join("||")}','${teacher}')">Remove</button>`
@@ -296,22 +844,28 @@
         const div = document.getElementById("reportContent");
         const btn = document.getElementById("exportBtn");
         if (assignments.length === 0) {
-          div.innerHTML = '<div style="text-align:center;padding:40px;color:#95a5a6">No assignments yet</div>';
+          div.innerHTML =
+            '<div style="text-align:center;padding:40px;color:#95a5a6">No assignments yet</div>';
           btn.style.display = "none";
           return;
         }
         btn.style.display = "inline-block";
         const teachers = [...new Set(assignments.map((a) => a.absentTeacher))];
-        const slots = [...new Set(assignments.map((a) => `${a.date}|${a.period}`))].sort((a, b) => {
-          const [, pa] = a.split("|"); const [, pb] = b.split("|"); return pa - pb;
+        const slots = [
+          ...new Set(assignments.map((a) => `${a.date}|${a.period}`)),
+        ].sort((a, b) => {
+          const [, pa] = a.split("|");
+          const [, pb] = b.split("|");
+          return pa - pb;
         });
-        let html = `<div class="report-summary">Total: ${assignments.length} substitutions</div>`;
-        html += `<div id="pdfContent"><table class="report-table"><thead><tr><th>Date</th><th>Period</th><th>Time</th>${teachers.map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody>`;
+        let html = `<div id="pdfContent" style="padding:10px;font-family:'Segoe UI',Arial,sans-serif;"><div style="margin-bottom:10px;font-weight:600;color:#27ae60;">Total: ${assignments.length} substitutions</div><table class="report-table"><thead><tr><th>Date</th><th>Period</th><th>Time</th>${teachers.map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody>`;
         slots.forEach((s) => {
           const [d, p] = s.split("|");
           html += `<tr><td>${d}</td><td>${p}</td><td>${periodTimes[p] || ""}</td>`;
           teachers.forEach((t) => {
-            const as = assignments.filter((a) => a.date === d && a.period == p && a.absentTeacher === t);
+            const as = assignments.filter(
+              (a) => a.date === d && a.period == p && a.absentTeacher === t,
+            );
             html += `<td>${as.length ? as.map((a) => `<strong>${a.teacher}</strong> <span style="background:#155724;color:#fff;padding:1px 6px;border-radius:8px;font-size:10px">${lecturesOnDate(a.teacher, a.date)}</span><br><span style="font-size:10px;color:#7f8c8d">${a.classes.join(", ")}</span>`).join("<hr>") : "-"}</td>`;
           });
           html += `</tr>`;
@@ -321,14 +875,21 @@
       }
 
       document.getElementById("exportBtn").onclick = () => {
-        const element = document.getElementById("pdfContent");
+        const src = document.getElementById("pdfContent");
+        const wrap = document.createElement("div");
+        wrap.style.cssText =
+          "padding:10px;font-family:'Segoe UI',Arial,sans-serif;background:#fff;";
+        wrap.innerHTML =
+          `<div style="text-align:center;padding:14px;background:#c0392b;color:#fff;border-radius:6px;margin-bottom:14px;"><div style="font-size:22px;font-weight:700;letter-spacing:1px;">GITA NIKETAN AWASIYA VIDYALAYA</div><div style="font-size:13px;opacity:0.9;margin-top:3px;">Substitution Report — Generated ${new Date().toLocaleString()}</div></div>` +
+          src.innerHTML;
         const opt = {
-          margin: 10, filename: "Substitution_Report.pdf",
+          margin: 10,
+          filename: "Substitution_Report.pdf",
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2 },
           jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
         };
-        html2pdf().set(opt).from(element).save();
+        html2pdf().set(opt).from(wrap).save();
       };
     </script>
   </body>
