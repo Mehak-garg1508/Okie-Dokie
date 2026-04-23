@@ -2,9 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gita Niketan - Teacher Substitution System</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Gita Niketan - Substitution</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -12,30 +13,50 @@
         box-sizing: border-box;
       }
       body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        font-family: "Segoe UI", sans-serif;
         background: #f5f7fa;
-        padding: 20px;
       }
-      .header {
+      .app-wrapper {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 220px;
+        background: #2c3e50;
+        color: #fff;
+      }
+      .sidebar-header {
+        padding: 25px 20px;
         background: #c0392b;
-        color: white;
-        padding: 25px;
-        border-radius: 8px 8px 0 0;
         text-align: center;
       }
-      .header h1 {
-        font-size: 24px;
-        font-weight: 600;
+      .sidebar-header h2 {
+        font-size: 18px;
       }
-      .header p {
-        font-size: 14px;
-        margin-top: 5px;
-        opacity: 0.95;
+      .nav-menu {
+        padding: 15px 0;
+      }
+      .nav-item {
+        padding: 14px 20px;
+        cursor: pointer;
+        border-left: 4px solid transparent;
+        display: flex;
+        gap: 10px;
+      }
+      .nav-item.active,
+      .nav-item:hover {
+        background: #34495e;
+        border-left-color: #c0392b;
+      }
+      .main-content {
+        flex: 1;
+        padding: 20px;
+        overflow: auto;
       }
       .container {
-        max-width: 1000px;
-        margin: 0 auto;
-        background: white;
+        max-width: 1600px;
+        margin: auto;
+        background: #fff;
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       }
@@ -53,47 +74,59 @@
         font-weight: 600;
         color: #c0392b;
         margin-bottom: 15px;
-        padding-bottom: 8px;
         border-bottom: 2px solid #c0392b;
-      }
-      label {
-        display: block;
-        margin-bottom: 6px;
-        color: #34495e;
-        font-weight: 500;
-        font-size: 14px;
+        padding-bottom: 8px;
       }
       input {
         width: 100%;
         padding: 10px;
         border: 1px solid #bdc3c7;
         border-radius: 4px;
-        font-size: 14px;
-        transition: border-color 0.3s;
       }
       input:focus {
         outline: none;
         border-color: #c0392b;
       }
+      .autocomplete-container {
+        position: relative;
+      }
+      .autocomplete-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #bdc3c7;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+      }
+      .autocomplete-list.show {
+        display: block;
+      }
+      .autocomplete-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #ecf0f1;
+      }
+      .autocomplete-item:hover {
+        background: #f8f9fa;
+      }
       .btn {
         width: 100%;
         padding: 14px;
         background: #c0392b;
-        color: white;
+        color: #fff;
         border: none;
         border-radius: 4px;
         font-size: 16px;
         font-weight: 600;
         cursor: pointer;
         margin-top: 15px;
-        transition: background 0.3s;
-      }
-      .btn:hover {
-        background: #a93226;
       }
       .btn:disabled {
         background: #95a5a6;
-        cursor: not-allowed;
       }
       .result {
         margin-top: 25px;
@@ -106,71 +139,67 @@
         font-size: 13px;
         margin-top: 8px;
         color: #27ae60;
-        font-weight: 500;
-      }
-      .status.error {
-        color: #e74c3c;
       }
       .schedule-box {
         background: #eef5ff;
         padding: 20px;
         border-radius: 8px;
         border-left: 5px solid #2980b9;
-        color: #1a5276;
         margin-bottom: 20px;
       }
       .schedule-box h3 {
         font-size: 18px;
         margin-bottom: 15px;
-        font-weight: 600;
       }
       .period-row {
-        background: white;
+        background: #fff;
         padding: 15px;
         border-radius: 6px;
         margin-bottom: 12px;
         border: 1px solid #d6eaf8;
+        display: flex;
+        gap: 15px;
       }
-      .period-row:last-child {
-        margin-bottom: 0;
+      .period-left {
+        flex: 1;
+      }
+      .period-right {
+        width: 280px;
+        border-left: 2px dashed #e0e0e0;
+        padding-left: 15px;
       }
       .period-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
         margin-bottom: 10px;
-      }
-      .period-badge {
-        background: #34495e;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 13px;
-        font-weight: 600;
       }
       .class-name {
         font-size: 16px;
         font-weight: 600;
-        color: #2c3e50;
       }
       .subject-name {
         font-size: 13px;
         color: #7f8c8d;
-        margin-top: 2px;
       }
-      .free-teachers {
-        margin-top: 10px;
-      }
-      .free-teachers-title {
+      .date-badge {
+        background: #c0392b;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 12px;
         font-size: 13px;
-        color: #7f8c8d;
-        margin-bottom: 6px;
-        font-weight: 500;
+      }
+      .period-badge {
+        background: #34495e;
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
       }
       .teacher-tags {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
+        margin-top: 6px;
       }
       .teacher-tag {
         background: #d4edda;
@@ -179,220 +208,457 @@
         border-radius: 4px;
         font-size: 12px;
         border: 1px solid #c3e6cb;
+        cursor: pointer;
       }
-      .no-free {
-        color: #e74c3c;
-        font-size: 12px;
+      .teacher-tag:hover {
+        background: #b1dfbb;
+      }
+      .teacher-tag.disabled {
+        background: #f8d7da;
+        color: #721c24;
+        border-color: #f5c6cb;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .assigned-box {
+        background: #fff8e1;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid #ffeaa7;
+        height: 100%;
+      }
+      .assigned-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #e67e22;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .assigned-teacher {
+        font-size: 15px;
+        font-weight: 700;
+        color: #c0392b;
+        margin-bottom: 8px;
+      }
+      .assigned-empty {
+        color: #95a5a6;
+        text-align: center;
+        padding: 30px 0;
         font-style: italic;
+        font-size: 12px;
+      }
+      .remove-btn {
+        width: 100%;
+        margin-top: 8px;
+        padding: 6px;
+        background: #c0392b;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        font-size: 12px;
+      }
+      .report-table th {
+        background: #c0392b;
+        color: #fff;
+        padding: 10px;
+        border: 1px solid #a93226;
+      }
+      .report-table td {
+        padding: 10px;
+        border: 1px solid #ecf0f1;
+        text-align: center;
+        vertical-align: top;
+      }
+      .report-table td strong {
+        color: #c0392b;
+      }
+      .report-summary {
+        background: #e8f5e9;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        border-left: 4px solid #27ae60;
+        font-weight: 600;
+        color: #27ae60;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="header">
-        <h1>GITA NIKETAN AWASIYA VIDYALAYA</h1>
-        <p>Teacher Substitution Management System</p>
+    <div class="app-wrapper">
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h2>GITA NIKETAN</h2>
+          <p>Substitution System</p>
+        </div>
+        <div class="nav-menu">
+          <div class="nav-item active" data-page="adjustment">
+            📋 Adjustment
+          </div>
+          <div class="nav-item" data-page="report">📊 Report</div>
+        </div>
       </div>
-
-      <div class="content">
-        <div class="section">
-          <div class="section-title">Step 1: Upload Master Timetable</div>
-          <input type="file" id="sheetFile" accept=".xlsx,.xls" />
-          <div class="status" id="fileStatus">
-            Please upload Time_Table_Full.xlsx
+      <div class="main-content">
+        <div class="page active" id="adjustment-page">
+          <div class="container">
+            <div class="content">
+              <div class="section">
+                <div class="section-title">Step 1: Upload Master Timetable</div>
+                <input type="file" id="sheetFile" accept=".xlsx,.xls" />
+                <div class="status" id="fileStatus">Please upload file</div>
+              </div>
+              <div class="section">
+                <div class="section-title">Step 2: Enter Absent Teacher</div>
+                <div class="autocomplete-container">
+                  <input
+                    type="text"
+                    id="absentTeacher"
+                    placeholder="Type to search..."
+                  />
+                  <div class="autocomplete-list" id="teacherDropdown"></div>
+                </div>
+              </div>
+              <button class="btn" id="findBtn" disabled>Show Schedule</button>
+              <div class="result" id="result"></div>
+            </div>
           </div>
         </div>
-
-        <div class="section">
-          <div class="section-title">Step 2: Enter Absent Teacher Name</div>
-          <label
-            >Absent Teacher Name <span style="color: #e74c3c">*</span></label
-          >
-          <input
-            type="text"
-            id="absentTeacher"
-            placeholder="e.g. NEELAM KUMARI"
-          />
+        <div class="page" id="report-page" style="display: none">
+          <div class="container">
+            <div class="content">
+              <div class="section">
+                <div class="section-title">Substitution Report</div>
+                <div id="reportContent"></div>
+                <button
+                  class="btn"
+                  id="exportBtn"
+                  style="
+                    display: none;
+                    background: #27ae60;
+                    width: auto;
+                    padding: 10px 20px;
+                  "
+                >
+                  Download PDF
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <button class="btn" id="findBtn" disabled>
-          Show Schedule & Available Substitutes
-        </button>
-
-        <div class="result" id="result"></div>
       </div>
     </div>
 
     <script>
-      let masterData = []; // All rows from sheet
-      let allTeachers = new Set();
+      let masterData = [],
+        allTeachers = new Set(),
+        assignments = [],
+        absentTeachersList = [];
 
-      function normalize(text) {
-        return text
-          ? String(text).trim().toLowerCase().replace(/\s+/g, " ")
-          : "";
-      }
+      const periodTimes = {
+        1: "08:00-08:40",
+        2: "08:40-09:20",
+        3: "09:20-10:00",
+        4: "10:00-10:40",
+        5: "10:40-11:20",
+        6: "11:20-12:00",
+        7: "12:30-01:10",
+        8: "01:10-01:50",
+        9: "01:50-02:30",
+      };
 
-      function parseLectureNum(lectureText) {
-        // "Lect 7" -> 7
-        const match = String(lectureText).match(/Lect\s*(\d+)/i);
-        return match ? parseInt(match[1]) : null;
-      }
+      document.querySelectorAll(".nav-item").forEach(
+        (i) =>
+          (i.onclick = () => {
+            document
+              .querySelectorAll(".nav-item")
+              .forEach((n) => n.classList.remove("active"));
+            i.classList.add("active");
+            document
+              .querySelectorAll(".page")
+              .forEach((p) => (p.style.display = "none"));
+            document.getElementById(i.dataset.page + "-page").style.display =
+              "block";
+            if (i.dataset.page === "report") renderReport();
+          }),
+      );
 
-      function parseMasterTimetable(file) {
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const data = new Uint8Array(e.target.result);
-              const workbook = XLSX.read(data, { type: "array" });
-              const sheet = workbook.Sheets[workbook.SheetNames[0]];
-              const jsonData = XLSX.utils.sheet_to_json(sheet, {
-                header: 1,
-                defval: null,
-              });
+      const normalize = (t) =>
+        t ? String(t).trim().toLowerCase().replace(/\s+/g, " ") : "";
+      const parseLecture = (t) =>
+        (String(t).match(/Lect\s*(\d+)/i) || [])[1] * 1;
+      const formatDate = (v) => {
+        let d =
+          typeof v === "number"
+            ? new Date(Math.round((v - 25569) * 864e5))
+            : new Date(v);
+        return isNaN(d)
+          ? "N/A"
+          : d
+              .toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+              .replace(/ /g, "-");
+      };
 
-              masterData = [];
-              allTeachers.clear();
-
-              // Row 0 is header, skip it
-              for (let i = 1; i < jsonData.length; i++) {
-                const row = jsonData[i];
-                if (!row || row.length === 0) continue;
-
-                const empName = row[2] ? String(row[2]).trim() : null; // EmployeeName
-                const className = row[4] ? String(row[4]).trim() : null; // Class
-                const section = row[6] ? String(row[6]).trim() : null; // Section
-                const subject = row[9] ? String(row[9]).trim() : null; // Subject Name
-                const lecture = row[10] ? String(row[10]).trim() : null; // Lecture Name
-
-                if (!empName || !lecture) continue;
-
-                const lectureNum = parseLectureNum(lecture);
-                if (!lectureNum) continue;
-
-                const fullClass = section
-                  ? `${className} ${section}`
-                  : className;
-
-                allTeachers.add(empName);
-                masterData.push({
-                  teacher: empName,
-                  teacherNorm: normalize(empName),
-                  class: fullClass,
-                  subject: subject,
-                  period: lectureNum,
-                });
-              }
-
-              resolve(allTeachers.size);
-            } catch (err) {
-              reject(err);
-            }
-          };
-          reader.onerror = () => reject(new Error("Failed to read file"));
-          reader.readAsArrayBuffer(file);
-        });
-      }
-
-      document
-        .getElementById("sheetFile")
-        .addEventListener("change", async function () {
-          const file = this.files[0];
-          if (!file) return;
-
-          const statusEl = document.getElementById("fileStatus");
-          statusEl.textContent = "Processing master timetable...";
-          statusEl.classList.remove("error");
-          document.getElementById("findBtn").disabled = true;
-
-          try {
-            const count = await parseMasterTimetable(file);
-            statusEl.textContent = `Success! ${count} teachers loaded from master timetable`;
-            document.getElementById("findBtn").disabled = false;
-          } catch (err) {
-            statusEl.textContent = "Error: " + err.message;
-            statusEl.classList.add("error");
-            console.error(err);
-          }
-        });
-
-      document.getElementById("findBtn").addEventListener("click", function () {
-        const absentTeacher = document
-          .getElementById("absentTeacher")
-          .value.trim();
-        if (!absentTeacher) {
-          alert("Please enter absent teacher name");
+      function assignTeacher(t, cls, sub, p, d, a) {
+        const c = cls.split("||");
+        if (absentTeachersList.map(normalize).includes(normalize(t))) {
+          alert("⚠️ " + t + " absent hai!");
           return;
         }
+        const already = assignments.find(
+          (x) => x.date === d && x.period === p && x.teacher === t,
+        );
+        if (already) {
+          alert("⚠️ " + t + " already assigned to " + already.absentTeacher);
+          return;
+        }
+        assignments = assignments.filter(
+          (x) =>
+            !(
+              x.date === d &&
+              x.period === p &&
+              JSON.stringify(x.classes) === JSON.stringify(c) &&
+              x.absentTeacher === a
+            ),
+        );
+        assignments.push({
+          teacher: t,
+          classes: c,
+          subject: sub,
+          period: p,
+          date: d,
+          absentTeacher: a,
+        });
+        renderSchedule();
+      }
+      function unassignTeacher(d, p, cls, a) {
+        const c = cls.split("||");
+        assignments = assignments.filter(
+          (x) =>
+            !(
+              x.date === d &&
+              x.period === p &&
+              JSON.stringify(x.classes) === JSON.stringify(c) &&
+              x.absentTeacher === a
+            ),
+        );
+        renderSchedule();
+      }
 
-        const normalizedAbsent = normalize(absentTeacher);
-        const resultDiv = document.getElementById("result");
-        resultDiv.classList.add("show");
+      function setupAutocomplete() {
+        const inp = document.getElementById("absentTeacher"),
+          dd = document.getElementById("teacherDropdown");
+        inp.oninput = () => {
+          const v = inp.value.toLowerCase();
+          dd.innerHTML = "";
+          if (!v) {
+            dd.classList.remove("show");
+            return;
+          }
+          const m = [...allTeachers]
+            .filter((t) => t.toLowerCase().includes(v))
+            .slice(0, 8);
+          if (!m.length) {
+            dd.classList.remove("show");
+            return;
+          }
+          m.forEach((t) => {
+            const d = document.createElement("div");
+            d.className = "autocomplete-item";
+            d.textContent = t;
+            d.onclick = () => {
+              inp.value = t;
+              dd.classList.remove("show");
+              document.getElementById("findBtn").click();
+            };
+            dd.appendChild(d);
+          });
+          dd.classList.add("show");
+        };
+        document.addEventListener("click", (e) => {
+          if (!e.target.closest(".autocomplete-container"))
+            dd.classList.remove("show");
+        });
+      }
 
-        // 1. Absent teacher ka schedule nikalo
-        const teacherSchedule = masterData.filter(
-          (row) => row.teacherNorm === normalizedAbsent,
+      document.getElementById("sheetFile").onchange = async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const data = new Uint8Array(await f.arrayBuffer());
+        const wb = XLSX.read(data, { type: "array", cellDates: true });
+        const sh = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sh, { header: 1, defval: null });
+        const h = json[0].map((x) => String(x || "").toLowerCase());
+        const ci = {
+          n: h.findIndex(
+            (x) => x.includes("employeename") || x.includes("teacher"),
+          ),
+          d: h.findIndex((x) => x.includes("date")),
+          c: h.findIndex((x) => x === "class"),
+          s: h.findIndex((x) => x.includes("section")),
+          u: h.findIndex((x) => x.includes("subject")),
+          l: h.findIndex((x) => x.includes("lecture")),
+        };
+        masterData = [];
+        allTeachers.clear();
+        assignments = [];
+        absentTeachersList = [];
+        for (let i = 1; i < json.length; i++) {
+          const r = json[i];
+          if (!r) continue;
+          const name = r[ci.n]?.trim(),
+            date = r[ci.d],
+            cls = r[ci.c],
+            sec = ci.s > -1 ? r[ci.s] : "",
+            sub = r[ci.u],
+            lec = r[ci.l];
+          if (!name || !lec || !date) continue;
+          const p = parseLecture(lec);
+          if (!p) continue;
+          const full = sec ? `${cls} ${sec}` : cls;
+          allTeachers.add(name);
+          masterData.push({
+            teacher: name,
+            teacherNorm: normalize(name),
+            dateFormatted: formatDate(date),
+            period: p,
+            subject: sub,
+            class: full,
+          });
+        }
+        document.getElementById("fileStatus").textContent =
+          `Success! ${allTeachers.size} teachers`;
+        document.getElementById("findBtn").disabled = false;
+        setupAutocomplete();
+      };
+
+      document.getElementById("findBtn").onclick = () => {
+        document.getElementById("result").classList.add("show");
+        renderSchedule();
+      };
+
+      function renderSchedule() {
+        const inp = document.getElementById("absentTeacher").value.trim();
+        const teacher = [...allTeachers].find(
+          (t) => normalize(t) === normalize(inp),
+        );
+        if (!teacher) return;
+        if (!absentTeachersList.includes(teacher))
+          absentTeachersList.push(teacher);
+        const raw = masterData.filter(
+          (r) => r.teacherNorm === normalize(teacher),
+        );
+        const grouped = {};
+        raw.forEach((r) => {
+          const k = `${r.dateFormatted}|${r.period}|${r.subject}`;
+          if (!grouped[k]) grouped[k] = { ...r, classes: [] };
+          grouped[k].classes.push(r.class);
+        });
+
+        // SORTED BY PERIOD - YAHI CHANGE HAI
+        const schedule = Object.values(grouped).sort(
+          (a, b) => a.period - b.period,
         );
 
-        if (teacherSchedule.length === 0) {
-          resultDiv.innerHTML = `
-            <div class="schedule-box">
-              <h3>Teacher Not Found</h3>
-              <p style="text-align: center; padding: 10px;">"${absentTeacher}" master timetable me nahi mila. Spelling check karo: ${Array.from(allTeachers).slice(0, 5).join(", ")}...</p>
-            </div>
-          `;
+        let html = `<div class="schedule-box"><h3>Schedule of ${teacher}</h3>`;
+        schedule.forEach((lec) => {
+          const assigned = assignments.find(
+            (a) =>
+              a.date === lec.dateFormatted &&
+              a.period === lec.period &&
+              JSON.stringify(a.classes) === JSON.stringify(lec.classes) &&
+              a.absentTeacher === teacher,
+          );
+          const busy = new Set(
+            masterData
+              .filter(
+                (r) =>
+                  r.dateFormatted === lec.dateFormatted &&
+                  r.period === lec.period,
+              )
+              .map((r) => r.teacherNorm),
+          );
+          const free = [...allTeachers].filter(
+            (t) =>
+              !busy.has(normalize(t)) && normalize(t) !== normalize(teacher),
+          );
+          html += `<div class="period-row"><div class="period-left"><div class="period-header"><div><div class="class-name">${lec.classes.join(", ")}</div><div class="subject-name">${lec.subject || ""}</div></div><div><span class="date-badge">${lec.dateFormatted}</span> <span class="period-badge">P${lec.period} (${periodTimes[lec.period] || ""})</span></div></div><div class="teacher-tags">`;
+          html += free
+            .map((t) => {
+              const already = assignments.find(
+                (a) =>
+                  a.date === lec.dateFormatted &&
+                  a.period === lec.period &&
+                  a.teacher === t,
+              );
+              return `<span class="teacher-tag ${already ? "disabled" : ""}" ${already ? "" : "onclick=\"assignTeacher('" + t + "','" + lec.classes.join("||") + "','" + (lec.subject || "") + "'," + lec.period + ",'" + lec.dateFormatted + "','" + teacher + "')\""}>${t}</span>`;
+            })
+            .join("");
+          html += `</div></div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
+          html += assigned
+            ? `<div class="assigned-teacher">${assigned.teacher}</div><div style="font-size:11px">${assigned.classes.join(", ")}</div><button class="remove-btn" onclick="unassignTeacher('${assigned.date}',${assigned.period},'${assigned.classes.join("||")}','${teacher}')">Remove</button>`
+            : `<div class="assigned-empty">Not assigned</div>`;
+          html += `</div></div></div>`;
+        });
+        html += `</div>`;
+        document.getElementById("result").innerHTML = html;
+      }
+
+      function renderReport() {
+        const div = document.getElementById("reportContent");
+        const btn = document.getElementById("exportBtn");
+        if (assignments.length === 0) {
+          div.innerHTML =
+            '<div style="text-align:center;padding:40px;color:#95a5a6">No assignments yet</div>';
+          btn.style.display = "none";
           return;
         }
-
-        // Sort by period
-        teacherSchedule.sort((a, b) => a.period - b.period);
-
-        // 2. Har period ke liye free teachers nikalo
-        let scheduleHTML = `
-          <div class="schedule-box">
-            <h3>Daily Schedule of ${absentTeacher} & Available Substitutes</h3>
-        `;
-
-        teacherSchedule.forEach((lecture) => {
-          // Is period me kaun kaun busy hai
-          const busyTeachers = new Set(
-            masterData
-              .filter((row) => row.period === lecture.period)
-              .map((row) => row.teacherNorm),
-          );
-
-          // Free teachers = all - busy
-          const freeTeachers = Array.from(allTeachers).filter(
-            (t) =>
-              !busyTeachers.has(normalize(t)) &&
-              normalize(t) !== normalizedAbsent,
-          );
-
-          scheduleHTML += `
-            <div class="period-row">
-              <div class="period-header">
-                <div>
-                  <div class="class-name">Class ${lecture.class}</div>
-                  <div class="subject-name">${lecture.subject || "N/A"}</div>
-                </div>
-                <span class="period-badge">Period ${lecture.period}</span>
-              </div>
-              <div class="free-teachers">
-                <div class="free-teachers-title">Available for substitution:</div>
-                ${
-                  freeTeachers.length > 0
-                    ? `<div class="teacher-tags">${freeTeachers.map((t) => `<span class="teacher-tag">${t}</span>`).join("")}</div>`
-                    : `<div class="no-free">No teacher free in this period</div>`
-                }
-              </div>
-            </div>
-          `;
+        btn.style.display = "inline-block";
+        const teachers = [...new Set(assignments.map((a) => a.absentTeacher))];
+        const slots = [
+          ...new Set(assignments.map((a) => `${a.date}|${a.period}`)),
+        ].sort((a, b) => {
+          const [da, pa] = a.split("|");
+          const [db, pb] = b.split("|");
+          return pa - pb;
         });
+        let html = `<div class="report-summary">Total: ${assignments.length} substitutions</div>`;
+        html += `<div id="pdfContent"><table class="report-table"><thead><tr><th>Date</th><th>Period</th><th>Time</th>${teachers.map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody>`;
+        slots.forEach((s) => {
+          const [d, p] = s.split("|");
+          html += `<tr><td>${d}</td><td>${p}</td><td>${periodTimes[p] || ""}</td>`;
+          teachers.forEach((t) => {
+            const as = assignments.filter(
+              (a) => a.date === d && a.period == p && a.absentTeacher === t,
+            );
+            html += `<td>${as.length ? as.map((a) => `<strong>${a.teacher}</strong><br><span style="font-size:10px;color:#7f8c8d">${a.classes.join(", ")}</span>`).join("<hr>") : "-"}</td>`;
+          });
+          html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        div.innerHTML = html;
+      }
 
-        scheduleHTML += `</div>`;
-        resultDiv.innerHTML = scheduleHTML;
-      });
+      document.getElementById("exportBtn").onclick = () => {
+        const element = document.getElementById("pdfContent");
+        const opt = {
+          margin: 10,
+          filename: "Substitution_Report.pdf",
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+        };
+        html2pdf().set(opt).from(element).save();
+      };
     </script>
   </body>
 </html>
