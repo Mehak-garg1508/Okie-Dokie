@@ -1101,9 +1101,45 @@
         return arr.join(" | ");
       }
 
+      // Total teaching periods per segment (before break / after break), derived from periodTimes config
+      function totalPeriodsBySegment() {
+        const nums = Object.keys(periodTimes)
+          .filter((k) => /^\d+$/.test(k))
+          .map(Number);
+        let before = 0,
+          after = 0;
+        nums.forEach((n) => {
+          if (n <= breakAfterPeriod) before++;
+          else after++;
+        });
+        // Fallback if periodTimes is empty
+        if (before + after === 0) {
+          before = 6;
+          after = 2;
+        }
+        return [before, after];
+      }
+
+      // Free (un-taught) periods for a teacher on a date, by segment
+      function freeOnDateBySegment(teacher, date) {
+        const taught = lecturesOnDateBySegment(teacher, date);
+        const total = totalPeriodsBySegment();
+        return [
+          Math.max(0, total[0] - taught[0]),
+          Math.max(0, total[1] - taught[1]),
+        ];
+      }
+
+      // Total free periods for the day
+      function freeOnDate(teacher, date) {
+        const f = freeOnDateBySegment(teacher, date);
+        return f[0] + f[1];
+      }
+
+      // Color by free-periods count: more free = green, fewer free = red
       function loadClass(n) {
-        if (n <= 3) return "load-low";
-        if (n <= 5) return "load-mid";
+        if (n >= 4) return "load-low";
+        if (n >= 2) return "load-mid";
         return "load-high";
       }
 
@@ -1333,10 +1369,10 @@
 
         let html = `<div class="schedule-box"><h3>Schedule of ${teacher}</h3>
           <div class="legend">
-            <span><i class="load-low" style="background:#2ecc71"></i> Light load (≤3)</span>
-            <span><i class="load-mid" style="background:#f39c12"></i> Medium (4-5)</span>
-            <span><i class="load-high" style="background:#c0392b"></i> Heavy (6+)</span>
-            <span style="margin-left:auto;color:#7f8c8d">Counts shown as <b>before | after</b> major break (P1-${breakAfterPeriod} | P${breakAfterPeriod + 1}+)</span>
+            <span><i class="load-low" style="background:#2ecc71"></i> Many free (≥4)</span>
+            <span><i class="load-mid" style="background:#f39c12"></i> Some free (2-3)</span>
+            <span><i class="load-high" style="background:#c0392b"></i> Few free (≤1)</span>
+            <span style="margin-left:auto;color:#7f8c8d">Free periods shown as <b>before | after</b> major break (P1-${breakAfterPeriod} | P${breakAfterPeriod + 1}+)</span>
           </div>`;
         schedule.forEach((lec) => {
           const assigned = assignments.find(
@@ -1365,10 +1401,10 @@
             )
             .map((t) => ({
               name: t,
-              count: lecturesOnDate(t, lec.dateFormatted),
-              segs: lecturesOnDateBySegment(t, lec.dateFormatted),
+              count: freeOnDate(t, lec.dateFormatted),
+              segs: freeOnDateBySegment(t, lec.dateFormatted),
             }))
-            .sort((a, b) => a.count - b.count || a.name.localeCompare(b.name));
+            .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
           const todayStr = new Date().toLocaleDateString("en-IN", {
             day: "2-digit",
@@ -1386,19 +1422,19 @@
                   a.teacher === t,
               );
               const segLabel = fmtSegments(f.segs);
-              const badge = `<span class="lect-count ${loadClass(f.count)}" title="Before Major Break: ${f.segs[0]} | After Major Break: ${f.segs[1]} (Total ${f.count})">${segLabel}</span>`;
+              const badge = `<span class="lect-count ${loadClass(f.count)}" title="Free Before Break: ${f.segs[0]} | Free After Break: ${f.segs[1]} (Total Free ${f.count})">${segLabel}</span>`;
               return `<span class="teacher-tag ${already ? "disabled" : ""}" ${already ? "" : "onclick=\"assignTeacher('" + t.replace(/'/g, "\\'") + "','" + lec.classes.join("||") + "','" + (lec.subject || "").replace(/'/g, "\\'") + "'," + lec.period + ",'" + lec.dateFormatted + "','" + teacher.replace(/'/g, "\\'") + "')\""}>${t} ${badge}</span>`;
             })
             .join("");
           html += `</div></div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
           html += assigned
             ? (() => {
-                const _segs = lecturesOnDateBySegment(
+                const _segs = freeOnDateBySegment(
                   assigned.teacher,
                   assigned.date,
                 );
-                const _tot = lecturesOnDate(assigned.teacher, assigned.date);
-                return `<div class="assigned-teacher">${assigned.teacher} <span class="lect-count ${loadClass(_tot)}" title="Before Major Break: ${_segs[0]} | After Major Break: ${_segs[1]} (Total ${_tot})">${fmtSegments(_segs)}</span></div><div style="font-size:11px">${assigned.classes.join(", ")}</div><button class="remove-btn" onclick="unassignTeacher('${assigned.date}',${assigned.period},'${assigned.classes.join("||")}','${teacher}')">Remove</button>`;
+                const _tot = freeOnDate(assigned.teacher, assigned.date);
+                return `<div class="assigned-teacher">${assigned.teacher} <span class="lect-count ${loadClass(_tot)}" title="Free Before Break: ${_segs[0]} | Free After Break: ${_segs[1]} (Total Free ${_tot})">${fmtSegments(_segs)}</span></div><div style="font-size:11px">${assigned.classes.join(", ")}</div><button class="remove-btn" onclick="unassignTeacher('${assigned.date}',${assigned.period},'${assigned.classes.join("||")}','${teacher}')">Remove</button>`;
               })()
             : `<div class="assigned-empty">Not assigned</div>`;
           html += `</div></div></div>`;
@@ -1481,9 +1517,9 @@
               as.length
                 ? as
                     .map((a) => {
-                      const segs = lecturesOnDateBySegment(a.teacher, a.date);
-                      const tot = lecturesOnDate(a.teacher, a.date);
-                      return `<div style="line-height:1.4;"><strong>${a.teacher}</strong><span class="lect-badge" title="Before Major Break: ${segs[0]} | After Major Break: ${segs[1]} (Total ${tot})">${fmtSegments(segs)}</span><div style="font-size:10px;color:#7f8c8d;margin-top:2px;">${a.classes.join(", ")}</div></div>`;
+                      const segs = freeOnDateBySegment(a.teacher, a.date);
+                      const tot = freeOnDate(a.teacher, a.date);
+                      return `<div style="line-height:1.4;"><strong>${a.teacher}</strong><span class="lect-badge" title="Free Before Break: ${segs[0]} | Free After Break: ${segs[1]} (Total Free ${tot})">${fmtSegments(segs)}</span><div style="font-size:10px;color:#7f8c8d;margin-top:2px;">${a.classes.join(", ")}</div></div>`;
                     })
                     .join(
                       '<hr style="margin:4px 0;border:none;border-top:1px solid #ecf0f1;">',
