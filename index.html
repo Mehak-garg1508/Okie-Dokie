@@ -926,19 +926,27 @@
       }
 
       const defaultPeriodTimes = {
-        1: "08:00-08:40",
-        2: "08:40-09:20",
-        3: "09:20-10:00",
-        4: "10:00-10:40",
-        5: "10:40-11:20",
-        6: "11:20-12:05",
+        1: "08:40-09:20",
+        2: "09:20-10:00",
+        3: "10:00-10:40",
+        break1: "10:40-10:50",
+        4: "10:50-11:30",
+        5: "11:30-12:05",
         break: "12:05-12:25",
-        7: "12:25-01:05",
-        8: "01:05-01:45",
-        9: "01:45-02:25",
+        6: "12:25-13:05",
+        7: "13:05-13:40",
+        8: "13:40-14:15",
+        9: "14:15-14:25",
       };
+      const PERIOD_TIMES_VERSION = "v39";
       let periodTimes = (() => {
         try {
+          const ver = localStorage.getItem("periodTimesVersion");
+          if (ver !== PERIOD_TIMES_VERSION) {
+            localStorage.removeItem("periodTimes");
+            localStorage.setItem("periodTimesVersion", PERIOD_TIMES_VERSION);
+            return { ...defaultPeriodTimes };
+          }
           const saved = JSON.parse(
             localStorage.getItem("periodTimes") || "null",
           );
@@ -1065,7 +1073,7 @@
         (String(t).match(/Lect\s*(\d+)/i) || [])[1] * 1;
 
       // Single major break: occurs after this period (e.g. break after P6)
-      const breakAfterPeriod = 6;
+      const breakAfterPeriod = 5;
       const breakAfterPeriods = [breakAfterPeriod]; // kept for back-compat
 
       // Returns segment index for a given period (0 = before break, 1 = after break)
@@ -1352,7 +1360,14 @@
         raw.forEach((r) => {
           // Merge by date+period only — if a teacher takes two sections together
           // in the same period, treat as one combined lecture (one substitution).
-          const k = `${r.dateFormatted}|${r.period}`;
+          // Use a canonical key only for de-duplication; keep the ORIGINAL
+          // r.dateFormatted on the grouped row so downstream lookups against
+          // masterData (busy set, freeOnDate, lecturesOnDate) still match.
+          const canonKey =
+            (typeof formatReportDate === "function"
+              ? formatReportDate(r.dateFormatted)
+              : r.dateFormatted) || r.dateFormatted;
+          const k = `${canonKey}|${r.period}`;
           if (!grouped[k]) grouped[k] = { ...r, classes: [], subjects: [] };
           if (!grouped[k].classes.includes(r.class))
             grouped[k].classes.push(r.class);
@@ -1406,12 +1421,25 @@
             }))
             .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
-          const todayStr = new Date().toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          });
-          html += `<div class="period-row"><div class="period-left"><div class="period-header"><div><div class="class-name">${lec.classes.join(", ")}</div><div class="subject-name">${lec.subject || ""}</div></div><div><span class="date-badge">${todayStr}</span> <span class="period-badge">P${lec.period} (${periodTimes[lec.period] || ""})</span></div></div><div class="teacher-tags">`;
+          // Show the actual lecture date (not today's date), so different days are visible
+          const lecDateObj = (() => {
+            const m = String(lec.dateFormatted || "").match(
+              /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/,
+            );
+            if (!m) return null;
+            let y = +m[3];
+            if (y < 100) y += 2000;
+            const d = new Date(y, +m[2] - 1, +m[1]);
+            return isNaN(d.getTime()) ? null : d;
+          })();
+          const lecDateStr = lecDateObj
+            ? lecDateObj.toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : lec.dateFormatted || "";
+          html += `<div class="period-row"><div class="period-left"><div class="period-header"><div><div class="class-name">${lec.classes.join(", ")}</div><div class="subject-name">${lec.subject || ""}</div></div><div><span class="date-badge">${lecDateStr}</span> <span class="period-badge">P${lec.period} (${periodTimes[lec.period] || ""})</span></div></div><div class="teacher-tags">`;
           html += free
             .map((f) => {
               const t = f.name;
