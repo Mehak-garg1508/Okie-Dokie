@@ -237,6 +237,33 @@
       .teacher-tag.disabled .lect-count {
         background: #721c24;
       }
+      .add-teacher-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 10px;
+        align-items: center;
+      }
+      .add-teacher-select {
+        flex: 1;
+        padding: 5px 8px;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+        font-size: 12px;
+        background: #fff;
+      }
+      .add-teacher-btn {
+        padding: 5px 12px;
+        background: #2980b9;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .add-teacher-btn:hover {
+        background: #1f6391;
+      }
       .load-low {
         background: #2ecc71 !important;
       }
@@ -830,7 +857,22 @@
       let masterData = [],
         allTeachers = new Set(),
         assignments = [],
-        absentTeachersList = [];
+        absentTeachersList = [],
+        extraTeachersByKey = {};
+
+      function rowKeyFor(date, period, absent, classes) {
+        return `${date}|${period}|${absent}|${(classes || []).join(",")}`;
+      }
+      function addExtraTeacher(key, selectId) {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        const t = sel.value;
+        if (!t) return;
+        extraTeachersByKey[key] = extraTeachersByKey[key] || [];
+        if (!extraTeachersByKey[key].includes(t))
+          extraTeachersByKey[key].push(t);
+        renderSchedule();
+      }
       const STORAGE_KEY = "gn_master_timetable_v1";
       const RECORDS_KEY = "gn_adjustment_records_v1";
       const SCHOOL_LOGO_SRC =
@@ -1439,6 +1481,19 @@
                 year: "numeric",
               })
             : lec.dateFormatted || "";
+          const rowKey = rowKeyFor(lec.dateFormatted, lec.period, teacher, lec.classes);
+          const extras = extraTeachersByKey[rowKey] || [];
+          const freeNames = new Set(free.map((f) => f.name));
+          extras.forEach((t) => {
+            if (!freeNames.has(t)) {
+              free.push({
+                name: t,
+                count: freeOnDate(t, lec.dateFormatted),
+                segs: freeOnDateBySegment(t, lec.dateFormatted),
+              });
+              freeNames.add(t);
+            }
+          });
           html += `<div class="period-row"><div class="period-left"><div class="period-header"><div><div class="class-name">${lec.classes.join(", ")}</div><div class="subject-name">${lec.subject || ""}</div></div><div><span class="date-badge">${lecDateStr}</span> <span class="period-badge">P${lec.period} (${periodTimes[lec.period] || ""})</span></div></div><div class="teacher-tags">`;
           html += free
             .map((f) => {
@@ -1454,7 +1509,15 @@
               return `<span class="teacher-tag ${already ? "disabled" : ""}" ${already ? "" : "onclick=\"assignTeacher('" + t.replace(/'/g, "\\'") + "','" + lec.classes.join("||") + "','" + (lec.subject || "").replace(/'/g, "\\'") + "'," + lec.period + ",'" + lec.dateFormatted + "','" + teacher.replace(/'/g, "\\'") + "')\""}>${t} ${badge}</span>`;
             })
             .join("");
-          html += `</div></div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
+          // Add-teacher dropdown: choose any teacher and add to available list for this slot
+          const selId = `addSel_${Math.abs(rowKey.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0))}_${lec.period}`;
+          const optionList = [...allTeachers]
+            .filter((t) => !freeNames.has(t) && normalize(t) !== normalize(teacher))
+            .sort((a, b) => a.localeCompare(b))
+            .map((t) => `<option value="${t}">${t}</option>`) 
+            .join("");
+          html += `</div><div class="add-teacher-row"><select id="${selId}" class="add-teacher-select"><option value="">-- Select teacher to add --</option>${optionList}</select><button type="button" class="add-teacher-btn" onclick="addExtraTeacher('${rowKey.replace(/'/g, "\\'")}','${selId}')">+ Add</button></div>`;
+          html += `</div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
           html += assigned
             ? (() => {
                 const _segs = freeOnDateBySegment(
@@ -1586,42 +1649,191 @@
           if (!html2canvasFn || !JsPdfCtor)
             throw new Error("PDF library not loaded.");
 
-          const reportTable = src.querySelector(".report-table");
-          const totalBlock = src.firstElementChild
-            ? src.firstElementChild.outerHTML
-            : "";
           const generatedDate = new Date().toLocaleDateString("en-IN", {
             day: "2-digit",
-            month: "short",
+            month: "long",
             year: "numeric",
           });
-          const generatedTime = new Date().toLocaleTimeString("en-IN", {
-            hour: "2-digit",
-            minute: "2-digit",
+
+          // ===== Build traditional school "Teacher's Adjustment" form layout =====
+          const absentTeachers = [
+            ...new Set(assignments.map((a) => a.absentTeacher)),
+          ];
+          // Determine periods to render: 1..max(9, max assigned period)
+          const maxAssignedPeriod = assignments.reduce(
+            (m, a) => Math.max(m, +a.period || 0),
+            0,
+          );
+          const totalPeriods = Math.max(9, maxAssignedPeriod);
+          const periodsList = [];
+          for (let p = 1; p <= totalPeriods; p++) periodsList.push(p);
+
+          const sessionLabel = (() => {
+            const now = new Date();
+            const y = now.getFullYear();
+            // If before April assume previous session
+            const startY = now.getMonth() < 3 ? y - 1 : y;
+            return `${startY}-${String((startY + 1) % 100).padStart(2, "0")}`;
+          })();
+
+          // Column widths (px) within 1100px wrapper
+          const dateColW = 90;
+          const periodColW = 60;
+          const labelColW = 90;
+          const teacherColsTotal = 1100 - dateColW - periodColW - labelColW;
+          const teacherColW = absentTeachers.length
+            ? Math.floor(teacherColsTotal / absentTeachers.length)
+            : teacherColsTotal;
+
+          const cellBorder = "1px solid #000";
+          const thStyle = `border:${cellBorder};padding:6px 4px;font-size:12px;font-weight:600;text-align:center;background:#fff;`;
+          const tdStyle = `border:${cellBorder};padding:6px 4px;font-size:11px;text-align:center;vertical-align:middle;`;
+
+          // Build period rows
+          let periodRowsHtml = "";
+          periodsList.forEach((p) => {
+            const timeStr = periodTimes[p] || "";
+            const periodLabel = `<div style="font-weight:700;font-size:13px;">${p}</div><div style="font-size:9px;color:#333;margin-top:2px;writing-mode:vertical-rl;transform:rotate(180deg);">${timeStr}</div>`;
+
+            // For each of 3 sub-rows (Class, Teacher, Signature)
+            ["Class", "Teacher", "Signature"].forEach((label, idx) => {
+              periodRowsHtml += `<tr class="pdf-row" style="page-break-inside:avoid;break-inside:avoid;">`;
+              if (idx === 0) {
+                if (p === 1) {
+                  const breakRowCount =
+                    breakAfterPeriod > 0 && breakAfterPeriod < totalPeriods
+                      ? 1
+                      : 0;
+                  periodRowsHtml += `<td rowspan="${
+                    3 * totalPeriods + breakRowCount
+                  }" style="${tdStyle}font-weight:600;">${generatedDate}</td>`;
+                }
+                // Period cell spans 3 rows
+                periodRowsHtml += `<td rowspan="3" style="${tdStyle}font-weight:700;">
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+                    <div style="font-size:14px;font-weight:700;">${p}</div>
+                    <div style="font-size:9px;color:#333;">${timeStr}</div>
+                  </div>
+                </td>`;
+              }
+              periodRowsHtml += `<td style="${tdStyle}font-weight:600;text-align:left;padding-left:8px;">${label}</td>`;
+              absentTeachers.forEach((absT) => {
+                const matches = assignments.filter(
+                  (a) => +a.period === p && a.absentTeacher === absT,
+                );
+                let cellContent = "";
+                if (matches.length) {
+                  if (label === "Class") {
+                    cellContent = matches
+                      .map((m) => (m.classes || []).join(", "))
+                      .join(" / ");
+                    if (m_isHoliday(matches)) cellContent = "H";
+                  } else if (label === "Teacher") {
+                    cellContent = matches
+                      .map(
+                        (m) =>
+                          `${m.teacher}${
+                            m.subject ? ` (${m.subject})` : ""
+                          }`,
+                      )
+                      .join(" / ");
+                  }
+                }
+                periodRowsHtml += `<td style="${tdStyle}">${cellContent}</td>`;
+              });
+              periodRowsHtml += `</tr>`;
+
+              // Insert MAJOR BREAK row after the Signature row of breakAfterPeriod
+              if (
+                idx === 2 &&
+                p === breakAfterPeriod &&
+                p !== totalPeriods
+              ) {
+                const breakTime = periodTimes["break"] || "";
+                periodRowsHtml += `<tr class="pdf-row" style="page-break-inside:avoid;break-inside:avoid;background:#fdecea;">
+                  <td colspan="${
+                    2 + absentTeachers.length
+                  }" style="${tdStyle}font-weight:700;color:#c0392b;letter-spacing:1px;">— MAJOR BREAK ${
+                    breakTime ? "(" + breakTime + ")" : ""
+                  } —</td>
+                </tr>`;
+              }
+            });
           });
 
-          // Single table — header banta hai sirf ek baar, rows continuously flow karti hain.
-          // page-break-inside:avoid har <tr> par lagayi hai taaki row beech me na toote.
-          const tableSection = reportTable
-            ? `<div data-pdf-section style="margin-bottom:10px;">${reportTable.outerHTML}</div>`
-            : `<div data-pdf-section style="margin-bottom:10px;">${src.innerHTML}</div>`;
+          function m_isHoliday(matches) {
+            return matches.some((m) =>
+              (m.classes || []).some((c) => /^H$/i.test((c || "").trim())),
+            );
+          }
 
-          const exportHtml = `
-            <div style="width:1100px;box-sizing:border-box;padding:0 4px 6px;font-family:'Segoe UI',Arial,sans-serif;background:#ffffff;color:#2c3e50;">
-              <div data-pdf-section style="margin-bottom:12px;page-break-inside:avoid;break-inside:avoid;">
-                <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;background:#c0392b;color:#fff;border-radius:6px;box-sizing:border-box;">
-                  <img width="60" height="60" crossorigin="anonymous" src="${SCHOOL_LOGO_SRC}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#fff;" alt="School logo" />
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:24px;font-weight:700;letter-spacing:0.5px;">Gita Niketan</div>
-                    <div style="font-size:13px;opacity:0.95;">Substitution Report</div>
-                  </div>
-                  <div style="font-size:12px;text-align:right;line-height:1.4;flex-shrink:0;">${generatedDate}<br>${generatedTime}</div>
+          // Header banner
+          const headerBanner = `
+            <div data-pdf-section style="text-align:center;margin-bottom:8px;page-break-inside:avoid;">
+              <div style="display:flex;align-items:center;justify-content:center;gap:14px;">
+                <img width="70" height="70" crossorigin="anonymous" src="${SCHOOL_LOGO_SRC}" style="width:70px;height:70px;border-radius:50%;object-fit:cover;background:#fff;" alt="logo" />
+                <div style="text-align:left;">
+                  <div style="font-size:26px;font-weight:800;color:#000;letter-spacing:0.5px;">GITA NIKETAN <span style="color:#c0392b;">AWASIYA</span><br><span style="color:#c0392b;font-size:22px;">VIDYALAYA</span></div>
+                  <div style="font-size:12px;color:#000;margin-top:2px;">Salarpur Road, Kurukshetra (Haryana)</div>
+                  <div style="font-size:12px;color:#000;">Ph. : 01744-270896, 259084</div>
                 </div>
               </div>
-              <div data-pdf-section style="margin-bottom:12px;page-break-inside:avoid;break-inside:avoid;">
-                ${totalBlock}
-              </div>
-              ${tableSection}
+              <div style="margin-top:10px;font-size:14px;font-weight:700;text-decoration:underline;">TEACHER'S ADJUSTMENT (Session: ${sessionLabel})</div>
+            </div>`;
+
+          // Top header table rows (Date / TEACHERS ON LEAVE / column numbers / names)
+          const teacherHeaderCells = absentTeachers
+            .map(
+              (t, i) =>
+                `<th style="${thStyle}width:${teacherColW}px;">${i + 1}</th>`,
+            )
+            .join("");
+          const teacherNameCells = absentTeachers
+            .map(
+              (t) =>
+                `<th style="${thStyle}font-weight:700;width:${teacherColW}px;">${t}</th>`,
+            )
+            .join("");
+
+          const formTable = `
+            <table style="width:1100px;border-collapse:collapse;margin:0 auto;font-family:'Segoe UI',Arial,sans-serif;color:#000;">
+              <colgroup>
+                <col style="width:${dateColW}px;">
+                <col style="width:${periodColW}px;">
+                <col style="width:${labelColW}px;">
+                ${absentTeachers
+                  .map(() => `<col style="width:${teacherColW}px;">`)
+                  .join("")}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style="${thStyle}" colspan="3" rowspan="2">Date: <span style="font-weight:600;">${generatedDate}</span></th>
+                  <th style="${thStyle}" colspan="${
+                    absentTeachers.length || 1
+                  }">TEACHERS ON LEAVE</th>
+                </tr>
+                <tr>
+                  ${teacherHeaderCells}
+                </tr>
+                <tr>
+                  <th style="${thStyle}" colspan="2">↓ Periods</th>
+                  <th style="${thStyle}"></th>
+                  ${teacherNameCells}
+                </tr>
+              </thead>
+              <tbody>
+                ${periodRowsHtml}
+              </tbody>
+            </table>
+            <div data-pdf-section style="display:flex;justify-content:space-between;margin-top:30px;font-size:13px;font-weight:600;padding:0 20px;">
+              <div>PRINCIPAL</div>
+              <div>TIME-TABLE ADJUSTMENT INCHARGE</div>
+            </div>`;
+
+          const exportHtml = `
+            <div style="width:1100px;box-sizing:border-box;padding:10px 6px;font-family:'Segoe UI',Arial,sans-serif;background:#ffffff;color:#000;">
+              ${headerBanner}
+              ${formTable}
             </div>`;
 
           holder = document.createElement("div");
