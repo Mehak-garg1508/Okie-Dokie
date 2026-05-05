@@ -245,19 +245,19 @@
       }
       .add-teacher-select {
         flex: 1;
-        padding: 5px 8px;
+        padding: 7px 10px;
         border: 1px solid #bdc3c7;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: 15px;
         background: #fff;
       }
       .add-teacher-btn {
-        padding: 5px 12px;
+        padding: 7px 16px;
         background: #2980b9;
         color: #fff;
         border: none;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: 15px;
         cursor: pointer;
         font-weight: 600;
       }
@@ -1481,7 +1481,12 @@
                 year: "numeric",
               })
             : lec.dateFormatted || "";
-          const rowKey = rowKeyFor(lec.dateFormatted, lec.period, teacher, lec.classes);
+          const rowKey = rowKeyFor(
+            lec.dateFormatted,
+            lec.period,
+            teacher,
+            lec.classes,
+          );
           const extras = extraTeachersByKey[rowKey] || [];
           const freeNames = new Set(free.map((f) => f.name));
           extras.forEach((t) => {
@@ -1512,9 +1517,12 @@
           // Add-teacher dropdown: choose any teacher and add to available list for this slot
           const selId = `addSel_${Math.abs(rowKey.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0))}_${lec.period}`;
           const optionList = [...allTeachers]
-            .filter((t) => !freeNames.has(t) && normalize(t) !== normalize(teacher))
             .sort((a, b) => a.localeCompare(b))
-            .map((t) => `<option value="${t}">${t}</option>`) 
+            .map((t) => {
+              const dis = freeNames.has(t) ? " disabled" : "";
+              const suffix = freeNames.has(t) ? " (already listed)" : "";
+              return `<option value="${t}"${dis}>${t}${suffix}</option>`;
+            })
             .join("");
           html += `</div><div class="add-teacher-row"><select id="${selId}" class="add-teacher-select"><option value="">-- Select teacher to add --</option>${optionList}</select><button type="button" class="add-teacher-btn" onclick="addExtraTeacher('${rowKey.replace(/'/g, "\\'")}','${selId}')">+ Add</button></div>`;
           html += `</div><div class="period-right"><div class="assigned-box"><div class="assigned-title">ASSIGNED</div>`;
@@ -1732,9 +1740,7 @@
                     cellContent = matches
                       .map(
                         (m) =>
-                          `${m.teacher}${
-                            m.subject ? ` (${m.subject})` : ""
-                          }`,
+                          `${m.teacher}${m.subject ? ` (${m.subject})` : ""}`,
                       )
                       .join(" / ");
                   }
@@ -1744,11 +1750,7 @@
               periodRowsHtml += `</tr>`;
 
               // Insert MAJOR BREAK row after the Signature row of breakAfterPeriod
-              if (
-                idx === 2 &&
-                p === breakAfterPeriod &&
-                p !== totalPeriods
-              ) {
+              if (idx === 2 && p === breakAfterPeriod && p !== totalPeriods) {
                 const breakTime = periodTimes["break"] || "";
                 periodRowsHtml += `<tr class="pdf-row" style="page-break-inside:avoid;break-inside:avoid;background:#fdecea;">
                   <td colspan="${
@@ -1898,81 +1900,23 @@
             windowHeight: Math.ceil(wrapperEl.scrollHeight || 800),
           });
 
-          const pxPerMm = fullCanvas.width / contentWidth;
-          const pageSlicePx = Math.floor(maxContentHeight * pxPerMm);
-
-          const wrapperRect = wrapperEl.getBoundingClientRect();
-          const breakPoints = [0];
-          Array.from(
-            wrapperEl.querySelectorAll(
-              "[data-pdf-section], tr.pdf-row, .pdf-row",
-            ),
-          ).forEach((el) => {
-            const r = el.getBoundingClientRect();
-            const yPx = Math.round(
-              (r.top - wrapperRect.top) *
-                (fullCanvas.width / wrapperEl.offsetWidth),
-            );
-            if (yPx > 0 && yPx < fullCanvas.height) breakPoints.push(yPx);
-          });
-          breakPoints.push(fullCanvas.height);
-          breakPoints.sort((a, b) => a - b);
-
-          let sliceStart = 0;
-          let pageIndex = 0;
-          while (sliceStart < fullCanvas.height) {
-            const idealEnd = Math.min(
-              sliceStart + pageSlicePx,
-              fullCanvas.height,
-            );
-            let sliceEnd = idealEnd;
-            if (idealEnd < fullCanvas.height) {
-              for (let i = breakPoints.length - 1; i >= 0; i -= 1) {
-                if (
-                  breakPoints[i] <= idealEnd &&
-                  breakPoints[i] > sliceStart + pageSlicePx * 0.6
-                ) {
-                  sliceEnd = breakPoints[i];
-                  break;
-                }
-              }
-            }
-            const sliceHeight = sliceEnd - sliceStart;
-            if (sliceHeight <= 0) break;
-
-            const pageCanvas = document.createElement("canvas");
-            pageCanvas.width = fullCanvas.width;
-            pageCanvas.height = sliceHeight;
-            const ctx = pageCanvas.getContext("2d");
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-            ctx.drawImage(
-              fullCanvas,
-              0,
-              sliceStart,
-              fullCanvas.width,
-              sliceHeight,
-              0,
-              0,
-              fullCanvas.width,
-              sliceHeight,
-            );
-
-            const imgData = pageCanvas.toDataURL("image/jpeg", 0.95);
-            const renderHeight = sliceHeight / pxPerMm;
-            if (pageIndex > 0) pdf.addPage();
-            pdf.addImage(
-              imgData,
-              "JPEG",
-              margin,
-              margin,
-              contentWidth,
-              renderHeight,
-            );
-
-            sliceStart = sliceEnd;
-            pageIndex += 1;
-          }
+          // Fit entire content onto a single page (scale down if needed)
+          const imgData = fullCanvas.toDataURL("image/jpeg", 0.95);
+          const widthRatio = contentWidth / (fullCanvas.width / 2); // /2 because scale:2
+          const heightRatio = maxContentHeight / (fullCanvas.height / 2);
+          const ratio = Math.min(widthRatio, heightRatio);
+          const renderWidth = (fullCanvas.width / 2) * ratio;
+          const renderHeight = (fullCanvas.height / 2) * ratio;
+          const offsetX = margin + (contentWidth - renderWidth) / 2;
+          const offsetY = margin;
+          pdf.addImage(
+            imgData,
+            "JPEG",
+            offsetX,
+            offsetY,
+            renderWidth,
+            renderHeight,
+          );
 
           pdf.save("Substitution_Report.pdf");
         } catch (e) {
